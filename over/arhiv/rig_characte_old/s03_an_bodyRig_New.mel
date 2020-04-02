@@ -1,0 +1,147 @@
+
+/*! ## Aвтоматический риг спины.  Версия 7.00 (26.09.12)
+ 
+ 
+*/
+
+
+ global proc s03_an_bodyRig_New()
+{
+$win = "BodyRigging";
+if (`window -ex $win `)deleteUI $win ;
+window -t "Body Rigging 8.00" -s true -rtf true -menuBar true $win ;
+menu -label "Additional comand" -tearOff true;
+	menuItem -label "Load preset" -command "an_loadBodyPreset()";
+	menuItem -label "Help"   -c "an_help( \"s03_an_bodyRig_v6.mel\");";
+columnLayout -adj 1;
+	separator -st "none" -h 15;
+  		textFieldButtonGrp -l "Switch_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_SwitchCtrl;" TFBG_SwitchCtrl;
+		textFieldButtonGrp -label "Parent controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0]     TFBG_parentCt;" TFBG_parentCt;
+	separator -st "none" -h 15;
+        textFieldButtonGrp -label "Torso controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_torsoCt;" TFBG_torsoCt;
+	    textFieldButtonGrp -label "Up_waist_CT controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_up_waistCt;" TFBG_up_waistCt;
+		textFieldButtonGrp -label "Dw_waist_CT controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_dw_waistCt;" TFBG_dw_waistCt;
+        textFieldButtonGrp -label "Body controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_bodyCt;" TFBG_bodyCt;
+		textFieldButtonGrp -label "Hips controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_hips_CT;" TFBG_hips_CT;
+    separator -st "none" -h 10;
+		rowColumnLayout -nc 4   -cw 1 95 -cw 2 100 -cw 3 115 -cw 4 115 ;
+		    text -l "";
+		    text -l "";
+			button   -l "Delete spine rig" -c "an_deleteSpineRig()";
+        	button -l "Make spine rig" -c "an_mackSpine ()";
+		setParent ..;
+showWindow $win ;
+}
+
+global proc string[] an_bodyCtNames ()
+    {
+    string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+    string $listNams[] = `an_NamesList_v02 -ctrl`;
+    string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+
+    return {($listNams[7]+$Sfx[9]), 		 //body_CT
+    		($Pfx[2]+$listNams[6]+$Sfx[9]),  //up_waist_CT
+            ($Pfx[3]+$listNams[6]+$Sfx[9]),  //dw_waist_CT
+    		($listNams[3]+$Sfx[9]), 		 //pelvis_CT
+    		($listNams[5]+$Sfx[9]) }; }       //torso_CT
+    
+
+global proc an_deleteSpineRig()
+{
+string $folders = an_bodyFoldersNames ();
+delete $folders;
+}
+
+
+global proc string an_bodyFoldersNames ()
+    {
+    string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+    return ("bodyRig"+$Sfx[5]); }
+
+
+global proc string[] an_bodyJointsNames ()
+    { return {"hips01_bind", "hips02_bind", "spine01_bind", "spine02_bind", "spine03_bind"}; }
+
+global proc an_mackSpine()
+{
+    string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+    string $jnts[] = an_bodyJointsNames();
+    
+    string $pivotOffset =`textFieldButtonGrp -q -tx  TFBG_parentCt`; //скеил контроллер
+    string $Switch =`textFieldButtonGrp -q -tx   TFBG_SwitchCtrl`;
+    
+    string $torso =`textFieldButtonGrp -q -tx  TFBG_torsoCt`; //торсо
+    string $up_waist =`textFieldButtonGrp -q -tx  TFBG_up_waistCt`;     //up_waist_CT
+    string $dw_waist =`textFieldButtonGrp -q -tx  TFBG_dw_waistCt`;     //dw_waist_CT
+    string $Body =`textFieldButtonGrp -q -tx  TFBG_bodyCt`;    //body_CT
+    string $hips =`textFieldButtonGrp -q -tx  TFBG_hips_CT`; //hips 
+   
+    string $grpRigg = an_bodyFoldersNames ();
+    group -em -n $grpRigg;
+    
+    an_makeCtrl ($Body, "-body", $jnts[0], $grpRigg, ($Switch+".centerFK"), {"sx", "sy", "sz", "v"}, {"sx", "sy", "sz", "v"} );
+        parentConstraint -mo $Body $jnts[0] ;
+    
+    an_makeCtrl ($hips, "-fk_back", $jnts[0], $Body, ($Switch+".centerFK"), {"sx", "sy", "sz", "v"}, {"sx", "sy", "sz", "v"} );
+        parentConstraint -mo $hips $jnts[1] ;
+        
+    string $temps [] = an_makeCtrl ($dw_waist, "-fk_back", "", $Body, ($Switch+".centerFK"), {"sx", "sy", "sz", "v"}, {"sx", "sy", "sz", "v"} ) ;
+        string $con[] = `pointConstraint $jnts[2]  $temps [0]`; delete $con[0];
+        parentConstraint -mo $dw_waist $jnts[2] ;
+
+    string $temps [] = an_makeCtrl ($up_waist, "-fk_back", "", $dw_waist, ($Switch+".centerFK"), {"sx", "sy", "sz", "v"}, {"sx", "sy", "sz", "v"} ) ;
+        string $con[] = `pointConstraint $jnts[3]  $temps [0]`; delete $con[0];
+        parentConstraint -mo $up_waist $jnts[3] ;
+        
+    addAttr -ln "sqOffs"   -keyable 1 $up_waist ;
+        
+        
+    string $temps [] = an_makeCtrl ($torso, "-upTorso", "", $up_waist, ($Switch+".centerFK"), {"sx", "sy", "sz", "v"}, {"sx", "sy", "sz", "v"} ) ;
+        string $con[] = `pointConstraint $jnts[4]  $temps [0]`; delete $con[0];
+        parentConstraint -mo $torso $jnts[4] ;
+
+    parent $grpRigg $pivotOffset;
+    
+    s09_an_setRotOrder();
+    }       
+  
+
+ 
+global proc an_loadBodyPreset ()
+    {
+    string $ctNames[] = `an_bodyCtNames`;
+    string $jntNames[] = `an_NamesList_v02 -bones`;
+    string $sfx[] = `an_NamesList_v02 -Sfx`;
+    string $bodyNames[] = `an_NamesList_v02 -ctrl`;
+    
+    textFieldButtonGrp -e -tx ($bodyNames[0]+$sfx[9]) TFBG_SwitchCtrl;
+    textFieldButtonGrp -e -tx ($bodyNames[2]+$sfx[9]) TFBG_parentCt; //скеил контроллер
+    
+    textFieldButtonGrp -e -tx $ctNames[0] TFBG_torsoCt; //торсо
+    textFieldButtonGrp -e -tx $ctNames[1] TFBG_up_waistCt;     //up_waist_CT
+    textFieldButtonGrp -e -tx $ctNames[2] TFBG_dw_waistCt;     //dw_waist_CT
+    
+    textFieldButtonGrp -e -tx $ctNames[3]    TFBG_bodyCt;    //body_CT
+    textFieldButtonGrp -e -tx $ctNames[4] TFBG_hips_CT; //hips
+     
+    }
+
+
+global proc s09_an_setRotOrder()
+    {
+    string $selection[] = `ls "*_CT"`;
+    for ($each in $selection) an_setJntRotOrder($each);
+    
+    string $selection[] = `ls "*_jnt"`;
+    for ($each in $selection) an_setJntRotOrder($each);
+    
+    string $selection[] = `ls "*_bind"`;
+    for ($each in $selection) an_setJntRotOrder($each);
+    }

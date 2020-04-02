@@ -1,0 +1,251 @@
+/* This file downloaded from Highend3d.com
+''  
+''  Highend3d.com File Information:
+''  
+''    Script Name: tf_animCurve2drivenKey
+''    Author: ferdo 
+''    Last Updated: Feb 12, 2008
+''    Update/Change this file at:
+''    http://Highend3d.com/maya/downloads/mel_scripts/animation/1932.html
+''  
+''  Please do not alter any information above this line
+''  it is generated dynamically by Highend3d.com and will
+''  be changed automatically on any updates.
+*/
+//####################################################################//
+//##																##//
+//## ---------------- tf_animCurve2drivenKey ---------------------- ##//
+//##																##//
+//####################################################################//
+//## -------------------------------------------------------------- ##//
+//##	Name:	tf_animCurve2drivenKey.mel			     			##//
+//##	Author:	tom ferstl											##//
+//##	web:	www.ferstltom.com									##//
+//##	email:	info@ferstltom.com									##//
+//## -------------------------------------------------------------- ##//
+//##	Usage:														##//
+//##	 copy tf_animCurve2drivenKey.mel to i.e.: 					##//
+//##		  "..\user\maya\2008\scripts\"							##//
+//##	 run "tf_animCurve2drivenKey" from the commandline	 		##//
+//## -------------------------------------------------------------- ##//
+//##	Notes:														##//
+//##	 tf_animCurve2drivenKey is a tool to convert animated 		##//
+//##	 objects to driven key animated objects						##//
+//##	 															##//
+//##	 First select all the animated objects (which will be		##//
+//##	 driven by the drivenKey), last select the drivers object	##//
+//##	 attribute (which will be the driver attribute for the 		##//
+//##	 driven key) and click "convert to sdk"						##//
+//##																##//
+//##	 all animation curves connected to animated objects will	##//
+//##	 be converted to value based animation curves (driven keys)	##//
+//##	 the input range for converting is defined by the first 	##//
+//##	 and last keyframe of the selected objects					##//
+//## -------------------------------------------------------------- ##//
+//##	Options:													##//
+//##	 - self animated driver:									##//
+//##	      when the driver attribute is on the animated object	##//
+//##	 															##//
+//##	 - with ouptput objects:									##//
+//##	      also get animation curves from output-connected		##//
+//##	      objects, i.e.: for clusters also the animation		##//
+//##	      on the envelopge attribute will be considered			##//
+//##	 															##//
+//##	 - Attribute range from driver:								##//
+//##	      brings the driven key range to the range of the		##//
+//##	      range of the driver attribute, i.e.: -1 to 1			##//
+//##	 															##//
+//##	 - Attribute range from custom:								##//
+//##	      lets you specifiy a custom range for the driven key	##//
+//##	      useful when no ranges exists for attributes			##//
+//##	      i.e.: translate or rotate attributes					##//
+//## -------------------------------------------------------------- ##//
+//####################################################################//
+
+
+global proc tf_a2sdk(int $selfAnimated, int $withOutputObjects, int $attrFrom, float $min[], float $max[])
+{
+	string $sel[] = `ls -sl`;
+	//get attrName from the channelBox
+	string $attr[] = `channelBox -q -sma mainChannelBox`;
+	//the last object in the selection is the driver
+	string $driver = $sel[size($sel)-1];
+	int $warning = 0;
+	
+	//check if exactly one driver attribute selected
+	if(size($attr) != 1)
+		error "please select exaclty one driver attribute from channelbox!";
+
+	//remove driver Object from list
+	string $objToRemove[];
+	$objToRemove[0] = $driver;
+	string $drivenObjs[] = stringArrayRemove($objToRemove, $sel);
+
+	//when with output objects checked, add them to the drivenObjs list
+	if($withOutputObjects)
+		$drivenObjs = stringArrayCatenate($drivenObjs, `listConnections -s 0 -d 1 $drivenObjs`);
+	
+	//if selfanimated add driver obejct to list again
+	if($selfAnimated)
+		$drivenObjs[size($drivenObjs)] = $driver;
+	
+	//check for driver attribute
+	float $attrRange[];
+	
+	//check it the attr.range is set to driver
+	if($attrFrom == 1)
+	{
+		//when there is a valid range get it, otherwise set to defaults: 0 to 1 and set warning true
+		if (`attributeQuery -re -n $driver $attr[0]`)
+			$attrRange = `attributeQuery -r -n $driver $attr[0]`;	
+		else 
+		{
+			$attrRange[0] = 0;
+			$attrRange[1] = 1;
+			$warning = 1;
+		}
+	}
+	//when its set to custom the range from the UI
+	else
+	{
+		$attrRange[0] = $min[0];
+		$attrRange[1] = $max[0];
+	}
+
+	//driver attr
+	string $ObjAttr = $driver + "." + $attr[0];
+	
+	//get all keyframe times with shapes for all driven objects
+	float $allKeys[] = `keyframe -s 1 -q $drivenObjs`;
+	
+	//check for animation keys on selected objects
+	if(!size($allKeys))
+		error "no animated objects selected!";
+	
+	//get current Time Unit for keyTangent conversion
+	string $frames = `currentUnit -q -t`;
+	float $fps;
+	
+	switch ($frames)
+	{
+		case "game"	:	$fps = 15; break;
+		case "film"	:	$fps = 24; break;
+		case "pal"	:	$fps = 25; break;
+		case "ntsc"	:	$fps = 30; break;
+		case "show"	:	$fps = 48; break;
+		case "palf"	:	$fps = 50; break;
+		case "ntscf":	$fps = 60; break;
+	}
+
+	float $minKey = $allKeys[0];
+	float $maxKey = $allKeys[0];
+	float $currentKey;
+	
+	//find min and max key for moving and scaling
+	for ($currentKey in $allKeys)
+	{
+		if($currentKey < $minKey)
+			$minKey = $currentKey;
+		
+		if($currentKey > $maxKey)
+			$maxKey = $currentKey;
+	}
+	
+	//move all keys to minRange
+	keyframe -s 1 -r -tc ($attrRange[0] - $minKey) $drivenObjs;
+	//scale all keys to endTime
+	scaleKey -s 1 -tp $attrRange[0] -ts (($attrRange[1]-$attrRange[0])/($maxKey-$minKey)) $drivenObjs;
+	
+	
+	//get all animCurves 
+	string $allAnimCurves[] = `keyframe -s 1 -q -n $drivenObjs`;
+	string $currentAnimCurve;
+	
+	string $sdkCmds[];
+	string $keyTangentCmds[];
+	string $itt[],$ott[];
+	float $ix[],$iy[],$ox[],$oy[];
+	string $sdkNode[];
+	string $drivenAttr[];
+	
+	//query for all curves
+	for ($currentAnimCurve in $allAnimCurves)
+	{
+		//query key times
+		float $oldKeyTimes[] = `keyframe -q $currentAnimCurve`;
+		float $currentKeyTime;
+		int $i = 0;
+		
+		$drivenAttr = `listConnections -p 1 $currentAnimCurve`;
+		
+		//query from 1 specific key
+		for ($currentKeyTime in $oldKeyTimes)
+		{
+			//query key values at time
+			float $oldKeyValues[] = `keyframe -t $currentKeyTime -q -ev $currentAnimCurve`;
+				
+			//query tangents
+			$itt = `keyTangent -t $currentKeyTime -q -itt $currentAnimCurve`;
+			$ott = `keyTangent -t $currentKeyTime -q -ott $currentAnimCurve`;
+			$ix = `keyTangent -t $currentKeyTime -q -ix $currentAnimCurve`;
+			$iy = `keyTangent -t $currentKeyTime -q -iy $currentAnimCurve`;
+			$ox = `keyTangent -t $currentKeyTime -q -ox $currentAnimCurve`;
+			$oy = `keyTangent -t $currentKeyTime -q -oy $currentAnimCurve`;
+			
+			//make the setDrivenKeyframe and keyTangent commands
+			$sdkCmds[$i] = "setDrivenKeyframe -cd " + $ObjAttr + " -v " + $oldKeyValues[0] + " -dv " + $currentKeyTime + " " + $drivenAttr[0] + ";";
+			$keyTangentCmds[$i] = 	"keyTangent -f " +  $currentKeyTime + " -e" +
+			 					" -itt " + $itt[0] + 
+								" -ott " + $ott[0] + 
+								" -ix " + ($ix[0]*$fps) +
+								" -iy " + $iy[0] +
+								" -ox " + ($ox[0]*$fps) +
+								" -oy " + $oy[0] + 
+								" " + $drivenAttr[0] + ";";
+			$i++;
+		}
+		
+		//delete to current animation curve and make the sdks and their tangents
+		delete $currentAnimCurve;
+		for ($sdkCmd in $sdkCmds)
+			eval($sdkCmd);
+		for($keyTangentCmd in $keyTangentCmds)
+			eval($keyTangentCmd);
+	}
+	//when a warining is thrown display it, otherwise print the standard msg
+	if($warning)
+		warning ("No valid range for " + $ObjAttr + " speicfied, using defaults: min=0, max=1");
+	else
+		print ("converted " + size($allAnimCurves) + " animation curves to driven keys!");
+}
+
+
+//build the UI
+global proc tf_animCurve2drivenKey()
+{
+	if (`window -ex tf_a2sdk`)
+		deleteUI tf_a2sdk;
+	
+	window tf_a2sdk;
+		columnLayout;
+			text -l " " -h 3;
+			checkBox -label "self animated driver" tf_a2sdk_cb;
+			checkBox -label "with output objects" tf_a2sdk_cb2;
+			text -l " " -h 5;
+			text -l " Attribute range from:";
+			radioButtonGrp 	-nrb 2 -labelArray2 "driver" "custom" -cw2 60 60 -sl 1 
+							-on2 "floatFieldGrp -e -en 1 tf_a2sdk_min; floatFieldGrp -e -en 1 tf_a2sdk_max;" 
+							-of2 "floatFieldGrp -e -en 0 tf_a2sdk_min; floatFieldGrp -e -en 0 tf_a2sdk_max;" tf_a2sdk_rb;
+			floatFieldGrp -nf 1 -label "min" -en 0 -value1 0 -cw2 60 60 tf_a2sdk_min;
+			floatFieldGrp -nf 1 -label "max" -en 0 -value1 1 -cw2 60 60 tf_a2sdk_max;
+			text -l " " -h 5;
+			button -l "convert to sdk" -w 120 -c ("tf_a2sdk(" +
+				"`checkBox -q -v tf_a2sdk_cb`," 		+
+				"`checkBox -q -v tf_a2sdk_cb2`,"		+
+				"`radioButtonGrp -q -sl tf_a2sdk_rb`,"	+
+				"`floatFieldGrp -q -v tf_a2sdk_min`,"	+
+				"`floatFieldGrp -q -v tf_a2sdk_max`)");
+	
+	showWindow;
+	window -e -wh 130 170 tf_a2sdk;
+}

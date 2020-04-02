@@ -1,0 +1,1197 @@
+global proc skinEnvelopes()
+{
+float $grey[] = {212.0 / 255.0,208.0 / 255.0,200.0 / 255.0};
+float $color1[] = {
+184.0 / 255,
+204.0 / 255,
+202.0 /255};
+float $color2[] = {
+187.0 / 255,
+202.0 / 255,
+207.0 /255};
+
+float $back[] = {
+$grey[0] / 1,
+$grey[1] / 1,
+$grey[2] / 1};
+float $but[] = {
+$grey[0] * 1,
+$grey[1] * 1,
+$grey[2] * 1};
+
+string $wind = "skinEnvelopes";
+if (`window -exists $wind`)
+	deleteUI $wind;
+window $wind;
+int $widthW = 210;
+int $widthC = ($widthW / 2) - 4;
+columnLayout -cal "center" -h 30 -bgc $back[0] $back[1] $back[2];
+	rowLayout -nc 2 -cw2 $widthC $widthC -bgc $back[0] $back[1] $back[2];
+		button -c "print (skinEnvelopesAssignEnvelope())" -l "   Assign envelope" -al "center" -w $widthC -bgc $but[0] $but[1] $but[2];
+		button  -c "print (skinEnvelopesDeleteAssignment())" -l " Delete assignment" -w $widthC -bgc $but[0] $but[1] $but[2];
+		setParent ..;
+	separator -h 7 -style "double" -w ($widthC * 2) -bgc $back[0] $back[1] $back[2];
+	rowLayout -nc 3 -cw3 80 80 70 -bgc $back[0] $back[1] $back[2];
+		button -w 80 -c "skinEnvelopesJointEnvel" -l "  joint > envel" -h 18 -bgc $but[0] $but[1] $but[2];
+		button -w 80 -c "skinEnvelopesEnvelJoint" -l "  envel > joint" -h 18 -bgc $but[0] $but[1] $but[2];
+			float $valB = 1.15;
+		button -w 40 -c "skinEnvelopesInfo" -l "tutorial" -h 18 -bgc ($but[0] / $valB) ($but[1] / $valB) ($but[2] / $valB * 1.15);
+		setParent ..;
+	separator -h 2 -style "none" -bgc $back[0] $back[1] $back[2];
+	rowLayout -nc 4 -cw4 50 50 50 50 -bgc $back[0] $back[1] $back[2];
+		button -w 50 -h 18 -c "skinEnvelopesSelectEnvelopes all"   -l "     all";
+		button -w 50 -h 18 -c "skinEnvelopesSelectEnvelopes rigid" -l "   rigids";
+		button -w 50 -h 18 -c "skinEnvelopesSelectEnvelopes blends" -l "  blends";
+		button -w 50 -h 18 -c "skinEnvelopesNormalsShow" -l " normals";
+		setParent ..;
+	separator -h 7 -style "double" -w ($widthC * 2);
+	rowLayout -nc 4 -cw4 55 36 77 32;
+		button -w 55 -c "skinEnvelopesSetVerts" -l " Set verts";
+		columnLayout;
+			separator -h 4 -st "none";
+			button -w 32 -l "reset" -h 14 -c skinEnvelopesResetVerts;
+			setParent ..;
+		button -w 77 -c "skinEnvelopesSetEnvelopes" -l "Set envelopes";
+		columnLayout;
+			separator -h 4 -st "none";
+			button -w 32 -l "reset" -h 14 -c skinEnvelopesResetEnvelopes;
+			setParent ..;
+		setParent ..;
+	rowLayout -nc 2 -cw2 $widthC $widthC -w $widthW;
+		text -w $widthC -fn "smallFixedWidthFont" -l "" skinEnvelopesText1;
+		text -w $widthC -fn "smallFixedWidthFont" -l "" skinEnvelopesText2;
+		setParent ..;
+	button -c "skinEnvelopesSkin" -l "Skin" -w ($widthC * 2);
+showWindow;
+window -e -w $widthW -h 161 $wind;
+skinEnvelopesRefreshText;
+}
+
+
+
+
+
+
+
+global proc skinEnvelopesAssignEnvelope()
+{
+string $sel[] = sel();
+if (`size $sel` > 1)
+{
+string $joint;
+string $listJoints[] = stringArrayRemove({$sel[0]}, $sel);
+if (!`attributeExists jointsAssigned $sel[0]`)
+	addAttr -ln jointsAssigned -dt stringArray $sel[0];
+if (`attributeExists envelope $sel[0]`)
+	deleteAttr ($sel[0] + ".envelope");
+
+string $text = "";
+$text = ("setAttr " + $sel[0] + ".jointsAssigned -type stringArray " + (`size $sel` - 1));
+string $joints[] = stringArrayRemoveExact({$sel[0]}, $sel);
+string $item;
+for ($item in $joints)
+	$text += (" \"" + $item + "\"");
+eval $text;
+
+$text = "";
+if (`size $joints` == 1)
+	$text += "rigid:";
+else
+	$text += ("blend " + `size $joints` + " joints:");
+for ($item in $joints)
+	$text += ($item + ":");
+addAttr -ln envelope -at "enum" -en $text $sel[0];
+setAttr -e -keyable true ($sel[0] + ".envelope");
+select $sel[0];
+if (`size $joints` == 1)
+	print "Rigid envelope assigned";
+else
+	print "Blended envelope assigned";
+}
+else
+	warning "select envelope and one ore more joints";
+}
+
+
+
+
+global proc skinEnvelopesDeleteAssignment()
+{
+string $sel[] = sel();
+string $object;
+int $deleted = 0;
+for ($object in $sel)
+	{
+	if (`attributeExists jointsAssigned $object` || `attributeExists envelope $object`)
+		{
+		if (`attributeExists jointsAssigned $object`)
+			deleteAttr ($object + ".jointsAssigned");
+		if (`attributeExists envelope $object`)
+			deleteAttr ($object + ".envelope");
+		$deleted = 1;
+		}
+	}
+if ($deleted)
+	warning "Envelope assignment deleted";
+else
+	print "Envelope assignment not found for deleting";
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+global proc skinEnvelopesJointEnvel()
+{
+string $joints[] = `ls -sl -type "joint"`;
+if (`size $joints` > 0)
+{
+string $joint;
+string $envsFound[] = {};
+for ($joint in $joints)
+	{
+	string $envs[] = skinEnvelopesFind($joint);
+	if (`size $envs` > 0)
+		$envsFound = stringArrayCatenate($envs, $envsFound);
+	}
+if (`size $envsFound` > 0)
+	{
+	select $envsFound;
+	print ("envelopes selected by joints - " + stringArrayToString($envsFound, " "));
+	}
+else
+	print "no envelopes assigned to this joint(s)";
+}
+else
+	print "select some joints that have envelopes assigned to it";
+}
+
+
+
+
+
+
+
+global proc skinEnvelopesEnvelJoint()
+{
+string $envsSelected[] = `ls -sl -tr`;
+if (`size $envsSelected` > 0)
+{
+string $env;
+string $jointsFound[] = {};
+for ($env in $envsSelected)
+	{
+//$env = $envsSelected[0];
+	if (`attributeExists jointsAssigned $env`)
+		{
+		string $joints[] = `getAttr ($env + ".jointsAssigned")`;
+		$jointsFound = stringArrayCatenate($joints, $jointsFound);
+		}
+	}
+if (`size $jointsFound` > 0)
+	{
+	select $jointsFound;
+	print ("joints selected by envelopes - " + stringArrayToString($jointsFound, " "));
+	}
+else
+	print "this is not an envelope";
+}
+else
+	print "select some envelopes";
+}
+
+
+
+global proc skinEnvelopesInfo()
+{
+string $wind = "info";
+if (`window -exists $wind`)
+	deleteUI $wind;
+window $wind;
+columnLayout;
+	text -l "If you have any ideas about improvements of this script,\nor you found some bugs, please write me - denis@cgtalk.ru,\n on english or russian.     Denis0-1.";
+	separator -st "none" -h 4;
+	setParent ..;
+rowLayout -nc 4 -cw4 50 40 5 100;
+	separator -st "none";
+	button -l "OK" -c "if (`window -exists info`) deleteUI info;";
+	separator -st "none";
+	button -l "View detailed tutorial on tool" -c skinEnvelopesTutorial;
+showWindow;
+window -e -w 297 -h 99 $wind;
+//window -q -w $wind;
+};
+
+global proc skinEnvelopesTutorial()
+{
+launch -web "www.mayascripts.cgtalk.ru/skinEnvelopesEng.htm";
+}
+
+
+
+
+
+global proc skinEnvelopesSelectEnvelopes(string $mode)
+{
+//$mode = "all"; $mode = "rigid"; $mode = "blends";
+$objects = `ls -type mesh`;
+$transforms = `listRelatives -p $objects`;
+string $item;
+string $blended[] = {};
+string $rigids[] = {};
+for ($item in $transforms)
+	{
+	//$item = $transforms[1];
+	if (`attributeExists jointsAssigned $item`)
+		{
+		string $blendOrNot[] = `getAttr ($item + ".jointsAssigned")`;
+		if (`size $blendOrNot` > 1)
+			$blended[`size $blended`] = $item;
+		else
+			$rigids[`size $rigids`] = $item;
+		}
+	}
+if ($mode == "all")
+	{
+	if (`size $rigids` == 0 && `size $blended` == 0)
+		print "can't found any envelope";
+	else
+		select $rigids $blended;
+	}
+else if ($mode == "rigid")
+	{
+	if (`size $rigids` == 0)
+		print "can't found any rigid envelope";
+	else
+		select $rigids;
+	}
+else if ($mode == "blends")
+	{
+	if (`size $blended` == 0)
+		print "can't found any blended envelope";
+	else
+		select $blended;
+	}
+}
+
+
+
+
+
+
+
+global proc skinEnvelopesNormalsShow()
+{
+$sel = `ls -sl -l`;
+if (`size $sel` > 0)
+{
+string $object;
+int $set;
+string $panel = `getPanel -wf`;
+for ($object in $sel)
+	{
+//$object = $sel[0];
+	int $num = forInNum($object, $sel);
+	string $shape[] = {};
+	$shape = `listRelatives -s -f $object`;
+	if (`size $shape` > 0)
+		{
+		if ($num == 0)
+			$set = !`getAttr ($shape[0] + ".displayNormal")`;
+		setAttr ($shape[0] + ".displayNormal") $set;
+		setAttr ($shape[0] + ".normalType") 1;
+		}
+	}
+modelEditor -e -twoSidedLighting (!$set) $panel;
+}
+else
+	print "select some envelopes";
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+global proc skinEnvelopesSetVerts()
+{
+if (sizeSel() > 0)
+	{
+	$sel = sel();
+	string $mesh[] = `ls -o (conv(sel(), "v"))`;
+	if (findSkinClusterFromMesh($mesh[0]) == "")
+		warning "Can't assign. No one skinCluster found in this mesh.";
+	else
+		{
+		createSet skinEnvelopesSetVerts;
+		if (whatIsIt($sel[0]) == "v")
+			print "Vertices list setted for skin";
+		else if (whatIsIt($sel[0]) == "o")
+			print "Mesh setted setted for skin";
+		}
+	}
+else if (`objExists skinEnvelopesSetVerts`)
+	select skinEnvelopesSetVerts;
+skinEnvelopesRefreshText;
+}
+
+
+
+
+
+
+global proc skinEnvelopesSetEnvelopes()
+{
+if (sizeSel() > 0)
+{
+string $sel[] = `ls -sl -tr`;
+string $item;
+createSet skinEnvelopesSetEnvelopes;
+cleanEnvelopes $sel;
+print "Envelopes list setted";
+}
+else if (`objExists skinEnvelopesSetEnvelopes`)
+	select skinEnvelopesSetEnvelopes;
+skinEnvelopesRefreshText;
+}
+
+
+
+
+global proc skinEnvelopesResetVerts()
+{
+if (`objExists skinEnvelopesSetVerts`)
+	{
+	delete skinEnvelopesSetVerts;
+	skinEnvelopesRefreshText;
+	}
+}
+
+global proc skinEnvelopesResetEnvelopes()
+{
+if (`objExists skinEnvelopesSetEnvelopes`)
+	{
+	delete skinEnvelopesSetEnvelopes;
+	skinEnvelopesRefreshText;
+	}
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+global proc skinEnvelopesSkin()
+{
+progressBegin;
+progressText "skinEnveloping...";
+
+//getting setted objects
+$sel = sel();
+select skinEnvelopesSetVerts;
+ConvertSelectionToVertices;
+string $vertices[] = sel();
+InvertSelection;
+string $verticesNot[] = sel();
+select skinEnvelopesSetEnvelopes;
+string $envelopes[] = sel();
+select $sel;
+
+//getting other items
+string $mesh = stringSingle(`ls -o $vertices[0]`);
+string $object = stringSingle(`listRelatives -p $mesh`);
+string $skinCluster = findRelatedSkinCluster($mesh);
+string $influences[] = `skinCluster -q -inf $skinCluster`;
+cleanEnvelopes($envelopes);
+nearestPointOnMeshCreate($envelopes);
+updateBboxGlobals($envelopes);
+
+select $influences[0];
+holdJoints;
+
+skinEnvelopesSelectEnvelopes rigid;
+string $rigidEnvelopes[] = sel();
+$rigidEnvelopes = stringIntersect($rigidEnvelopes, $envelopes);
+
+TIMER START;
+string $verticesCurr[10000];
+string $vertsDeselect[10000];
+for ($envelope in $rigidEnvelopes)
+	{
+	//$envelope = $rigidEnvelopes[0];
+print ("working on rigid envelope " + (forInNum($envelope, $rigidEnvelopes) + 1) + " from " + `size $rigidEnvelopes`);
+	skinEnvelopesCutSphere($envelope, $object);
+print "sprere selected\n";
+	$verticesCurr = sel();
+	$vertsDeselect = {};
+	string $vertex;
+	for ($vertex in $verticesCurr)
+		{
+		//$vertex = $vertices[0];
+		float $pos[] = `pointPosition $vertex`;
+		$distance = inside ($pos, $envelope);
+		if ($distance == -1)
+			$vertsDeselect[`size $vertsDeselect`] = $vertex;
+		}
+	select -d $vertsDeselect $verticesNot;
+print "deselect unneed\n";
+	$joint = stringSingle(`getAttr ($envelope + ".jointsAssigned")`);
+	skinPercent -tv $joint 1 $skinCluster;
+print "weight assigned\n";
+	progressText ("rigid env " + (forInNum($envelope, $rigidEnvelopes) + 1) + "/" + `size $rigidEnvelopes`);
+	if (progressEsc())
+		break;
+	}
+
+print "now blended";
+string $blendedEnvelopes[] = stringArrayRemove($rigidEnvelopes, $envelopes);
+for ($envelope in $blendedEnvelopes)
+	{
+print ("working on blend envelope " + (forInNum($envelope, $blendedEnvelopes) + 1) + " from " + `size $blendedEnvelopes`);
+	//$envelope = $blendedEnvelopes[1];
+	//select $envelope;
+	skinEnvelopesCutSphere($envelope, $object);
+print "sprere selected\n";
+	string $verticesCurr[] = sel();
+	string $vertsDeselect[] = {};
+	string $vertex;
+	for ($vertex in $verticesCurr)
+		{
+		//$vertex = $vertices[0];
+		float $pos[] = `pointPosition $vertex`;
+		$distance = inside ($pos, $envelope);
+		if ($distance == -1)
+			$vertsDeselect[`size $vertsDeselect`] = $vertex;
+		}
+	select -d $vertsDeselect $verticesNot;
+print "deselect unneed\n";
+	string $joints[] = `getAttr ($envelope + ".jointsAssigned")`;
+
+	//blending
+	//finding envelopes to blend between
+	string $envsBlend[] = {};
+	for ($joint in $joints)	
+		{
+		//$joint = $joints[0];
+		
+		//looking for rigid envelope
+		string $envsNeed[] = {};
+		string $env;
+		for ($env in $envelopes)
+			{
+		//$env = $envelopes[0];
+			string $jointsHere[] = `getAttr ($env + ".jointsAssigned")`;
+			if (`size $jointsHere` == 1 && $jointsHere[0] == $joint)
+				$envsNeed[`size $envsNeed`] = $env;
+			}
+		//print $envsNeed;
+	
+		//if rigid not founded, look for blended
+		if (`size $envsNeed` == 0)
+			{
+			string $env;
+			for ($env in $envelopes)
+				{
+			//$env = $envelopes[0];
+				string $jointsHere[] = `getAttr ($env + ".jointsAssigned")`;
+				int $numIn = forInNum ($joint, $jointsHere);
+				if ($numIn != -1)
+					$envsNeed[`size $envsNeed`] = $env;
+				}
+			}
+		//print $envsNeed;
+		$envsNeed = stringArrayRemove({$envelope}, $envsNeed);
+		$envsBlend[`size $envsBlend`] = $envsNeed[0];
+		}
+	//print $envsBlend;
+
+	//get distances, weights and assigning weights
+	$verticesCurr = sel();
+	int $countVerts = 0;
+	for ($vertex in $verticesCurr)
+		{
+		//$vertex = $verticesCurr[45];
+
+		//getting distances
+		float $pos[] = `pointPosition $vertex`;
+		float $distances[] = {};
+		for ($env in $envsBlend)
+			{
+			//$env = $envsBlend[0];
+			$distances[`size $distances`] = distanceTo($pos, $env);
+			}
+		//print $distances
+
+		//convert distances to weights
+		float $weights[] = {};
+		float $distance;
+		float $sum = floatArraySum($distances);
+		for ($distance in $distances)
+			$weights[`size $weights`] = (1.0 - ($distance / $sum));
+		//print $weights;
+
+		//assign
+		if (`size $joints` == 2)
+			skinPercent
+				-tv $joints[0] $weights[0]
+				-tv $joints[1] $weights[1]
+					$skinCluster $vertex;
+		else
+			warning "3 joints not supported for blending";
+		$countVerts ++;
+		if ($countVerts % 10 == 0)
+			{
+			progressText ("blend env " + (forInNum($envelope, $blendedEnvelopes) + 1) + "/" + `size $blendedEnvelopes` + ",  v: " + $countVerts + " from " + `size $verticesCurr`);
+			print ("assigning " + $countVerts + " from " + `size $verticesCurr` + "\n");
+			}
+		if (progressEsc())
+			break;
+		}
+	if (progressEsc())
+		break;
+	}
+select $sel;
+progressEnd;
+print (TIMER ("QUERY") + "\t" + sizeSel());
+print "\n";
+}	
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+global proc cleanEnvelopes(string $objects[])
+{
+//$objects = sel();
+$sel = sel();
+select $objects;
+unlockNormals();
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 2 -jointOrient;
+for ($obj in $objects)
+	polySoftEdge -a 0 $obj;
+select $objects;
+unlockNormals();
+delete -ch;
+select $sel;
+}
+
+
+global proc string[] skinEnvelopesGetAllEnvelopes()
+{
+$objects = `ls -type mesh`;
+$transforms = `listRelatives -p $objects`;
+string $item;
+string $envelopes[] = {};
+for ($item in $transforms)
+	{
+	//$item = $transforms[1];
+	if (`attributeExists jointsAssigned $item`)
+		$envelopes[`size $envelopes`] = $item;
+	}
+return $envelopes;
+}
+
+
+
+global proc string[] skinEnvelopesFind(string $joint)
+{
+//$joint = sel1();
+$envelopes = skinEnvelopesGetAllEnvelopes();
+string $envelope;
+string $envNeed = "";
+string $envsFind[] = {};
+for ($envelope in $envelopes)
+	{
+//$envelope = $envelopes[0];
+	string $joints[] = `getAttr ($envelope + ".jointsAssigned")`;
+	int $num = forInNum($joint, $joints);
+	if ($num != -1)
+		$envsFind[`size $envsFind`] = $envelope;
+	}
+return $envsFind;
+}
+
+
+
+
+
+global proc skinEnvelopesRefreshText()
+{
+string $meshText = "";
+string $envsText = "";
+$sel = sel();
+
+if (`objExists skinEnvelopesSetVerts`)
+	{
+	select skinEnvelopesSetVerts;
+	if (`objectType (sel1())` == "transform")
+		{
+		int $sizes[] = `polyEvaluate -v`;
+		$meshText = ("mesh-" + $sizes[0] + " vtx");
+		}
+	else
+		{
+		$size = size (conv(sel(), "v"));
+		$meshText = ("" + $size + " verts");
+		}
+	}
+else
+	$meshText = "   ...";
+
+if (`objExists skinEnvelopesSetEnvelopes`)
+	{
+	select skinEnvelopesSetEnvelopes;
+	if (sizeSel() > 0)
+		$envsText = (" " + sizeSel() + " envelopes");
+	else
+		$envsText = "  ...";
+	}
+else
+	$envsText = "  ...";
+
+
+select $sel;
+text -e -l $meshText skinEnvelopesText1;
+text -e -al "center" skinEnvelopesText1;
+text -e -l $envsText skinEnvelopesText2;
+text -e -al "center" skinEnvelopesText2;
+}
+
+
+
+global proc skinEnvelopesCutSphere(string $envelope, string $object)
+{
+/*
+$object = sel1();
+$envelope = sel1();
+*/
+float $min[] = {};
+$min[0] = `getAttr ($envelope + ".bboxGlobalMinX")`;
+$min[1] = `getAttr ($envelope + ".bboxGlobalMinY")`;
+$min[2] = `getAttr ($envelope + ".bboxGlobalMinZ")`;
+float $max[] = {};
+$max[0] = `getAttr ($envelope + ".bboxGlobalMaxX")`;
+$max[1] = `getAttr ($envelope + ".bboxGlobalMaxY")`;
+$max[2] = `getAttr ($envelope + ".bboxGlobalMaxZ")`;
+
+float $center[];
+$center[0] = ($min[0] + $max[0]) / 2;
+$center[1] = ($min[1] + $max[1]) / 2;
+$center[2] = ($min[2] + $max[2]) / 2;
+
+$distance = twoPointsDistance($center, $max);
+selectPointsInDistance($center, $distance, $object);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+global proc createSet(string $name)
+{
+if (`objExists $name`)
+	delete $name;
+sets -name $name;
+}
+
+global proc float distanceTo (float $pos[], string $object)
+{
+//string $object = "pSphere2";
+//float $pos[] = `xform -q -ws -t locator1`;
+$nearNode = ("nearestPointOnMesh_" + $object);
+setAttr ($nearNode + ".inPosition") $pos[0] $pos[1] $pos[2];
+float $pnt[] = `getAttr ($nearNode + ".position")`;
+$distance = twoPointsDistance($pos, $pnt);
+return $distance;
+}
+
+global proc string findSkinClusterFromMesh(string $node)
+{
+//$node = sel1();
+string $skinClusters[] = `ls -type skinCluster`;
+string $skin;
+string $skinCluster;
+for ($skin in $skinClusters)
+	{
+//$skin = $skinClusters[0];
+	string $geometries[] = `skinCluster -q -g $skin`;
+	if (forInNum($node, $geometries) != -1)
+		$skinCluster = $skin;
+	}
+return $skinCluster;
+}
+
+global proc float floatArraySum(float $array[])
+{
+float $sum = 0;
+float $single;
+for ($single in $array)
+	$sum += $single;
+return $sum;
+}
+
+global proc int forInNum(string $item, string $array[])
+{
+//$item = "b";
+//$array = {"a", "b", "c"};
+$c = 0;
+for (; $c < `size $array`; $c++)
+	{
+	if ($array[$c] == $item)
+		break;
+	}
+if ($c == `size $array`)
+	return -1;
+return $c;
+}
+
+
+global proc string holdJoints()
+{
+string $joints[] = `ls -sl -type joint`;
+string $skinCluster = findSkinClusterFromJoint($joints[0]);
+$influences = `skinCluster -q -inf $skinCluster`;
+$influencesNotSelected = stringArrayRemove ($joints, $influences);
+
+int $hold = 0;
+if (`size $joints` >= 2)
+	$hold = 1;
+
+string $joint;
+for ($joint in $influencesNotSelected)
+	setAttr ($joint + ".lockInfluenceWeights") $hold;
+for ($joint in $joints)
+	setAttr ($joint + ".lockInfluenceWeights") 0;
+if ($hold == 1)
+	return "HOLD";
+else
+	return "UNHOLD";
+}
+
+
+global proc float inside(float $pos[], string $object)
+{
+//string $object = "polySurface36";
+//float $pos[] = `pointPosition`;
+//1.041656 -1.935721 -3.752303 //
+
+//third way
+float $min[] = {};
+$min[0] = `getAttr ($object + ".bboxGlobalMinX")`;
+$min[1] = `getAttr ($object + ".bboxGlobalMinY")`;
+$min[2] = `getAttr ($object + ".bboxGlobalMinZ")`;
+float $max[] = {};
+$max[0] = `getAttr ($object + ".bboxGlobalMaxX")`;
+$max[1] = `getAttr ($object + ".bboxGlobalMaxY")`;
+$max[2] = `getAttr ($object + ".bboxGlobalMaxZ")`;
+
+//second way
+//float $BB[] = bboxObjectByVertices ($object);
+//float $min[] = {$BB[0], $BB[1], $BB[2]};
+//float $max[] = {$BB[3], $BB[4], $BB[5]};
+
+//first way
+//float $min[] = `getAttr ($object + ".boundingBoxMin")`;
+//float $max[] = `getAttr ($object + ".boundingBoxMax")`;
+//float $t[] = `xform -q -ws -t $object`;
+//$min[0] += $t[0]; $min[1] += $t[1]; $min[2] += $t[2];
+//$max[0] += $t[0]; $max[1] += $t[1]; $max[2] += $t[2];
+
+//print $max;
+//print $min;
+
+if (	$pos[0] > $max[0] ||
+	$pos[0] < $min[0] ||
+	$pos[1] > $max[1] ||
+	$pos[1] < $min[1] ||
+	$pos[2] > $max[2] ||
+	$pos[2] < $min[2])
+		{
+//		print "\nOut from BBox";
+		return -1;
+		}
+$nearNode = ("nearestPointOnMesh_" + $object);
+setAttr ($nearNode + ".inPosition") $pos[0] $pos[1] $pos[2];
+vector $pnt = `getAttr ($nearNode + ".position")`;
+vector $normal = `getAttr ($nearNode + ".normal")`;
+vector $vector =  (floatToVector($pos)) - $pnt;
+$angle = angleD($normal, $vector);
+$distance = twoPointsDistance($pos, vectorToFloat($pnt));
+if ($angle >= 90)
+	return $distance;
+return -1;
+}
+
+
+global proc nearestPointOnMeshCreate (string $objects[])
+{
+//$objects = sel();
+//nearestPointOnMeshLoad;
+string $object;
+int $count = 0;
+for ($object in $objects)
+	{
+//$object = $objects[0];
+	if (!`objExists ("nearestPointOnMesh_" + $object)`)
+		{
+		nearestPointOnMesh -na ("nearestPointOnMesh_" + $object) $object;
+		$count++;
+		}
+	}
+//print ($count + " nodes created from " + `size $objects` + " objects specified.");
+}
+
+
+global proc progressBegin()
+{
+global string $gMainProgressBar;
+progressBar -edit -beginProgress -isInterruptable true
+	-status "" -maxValue 1000 $gMainProgressBar;
+}
+
+
+global proc float TIMER(string $action)
+{
+if ($action == "START")
+	{
+	global float $GstartTime;
+	float $GstartTime = `timerX`;
+	}
+else if ($action == "QUERY")
+	{
+	global float $GstartTime;
+	$totalTime = `timerX -startTime $GstartTime`;
+	return $totalTime;
+	}
+return 0;
+}
+
+global proc string[] stringIntersect(string $string1[], string $string2[])
+{
+/*
+$string1 = {"1", "2", "3"};
+$string2 = {"2", "3", "4"};
+*/
+string $string1no[] = stringArrayRemove($string2, $string1);
+string $string2no[] = stringArrayRemove($string1, $string2);
+
+string $string1yes[] = stringArrayRemove($string1no, $string1);
+string $string2yes[] = stringArrayRemove($string2no, $string2);
+
+return $string1yes;
+}
+
+global proc float twoPointsDistance (float $p1[], float $p2[])
+{
+float $distance = sqrt(pow(($p1[0] - $p2[0]), 2) + pow(($p1[1] - $p2[1]), 2) + pow(($p1[2] - $p2[2]), 2));
+return $distance;
+}
+
+
+global proc string stringSingle(string $array[])
+{return $array[0];}
+
+global proc unlockNormals()
+{
+$sel = `ls -sl`;
+string $obj;
+for ($obj in $sel)
+	{
+	polyNormalPerVertex -ufn true $obj;
+	}
+}
+
+global proc selectPointsInDistance(float $pos[], float $maxDistance, string $obj)
+{
+/*
+float $maxDistance = 0.2;
+$pos = `pointPosition`;
+$obj = sel1();
+*/
+select $obj;
+polySelectConstraint -t 1 -m 3 -d 1 -db 0 $maxDistance -dp $pos[0] $pos[1] $pos[2];
+polySelectConstraint -t 0 -m 0;
+}
+
+global proc progressText(string $text)
+{
+global string $gMainProgressBar;
+progressBar -edit -status $text $gMainProgressBar;
+}
+
+
+global proc int progressEsc()
+{
+global string $gMainProgressBar;
+if(`progressBar -query -isCancelled $gMainProgressBar`)
+	{
+	progressEnd;
+	return 1;
+	}
+return 0;
+}
+
+
+
+global proc progressValue(float $value)
+{
+global string $gMainProgressBar;
+int $intValue = $value * 10;
+progressBar -edit -progress $intValue $gMainProgressBar;
+}
+
+global proc int sizeSel()
+{
+$size = (size (`ls -sl -fl`));
+return $size;
+}
+
+
+global proc string[] sel()
+{
+return `ls -sl -fl`;
+}
+
+global proc progressEnd()
+{
+global string $gMainProgressBar;
+progressBar -edit -endProgress $gMainProgressBar;
+}
+
+
+global proc updateBboxGlobals(string $items[])
+{
+//$items = sel();
+int $visible = 0;
+string $item;
+for ($item in $items)
+{
+//$item = $items[0];
+if (
+   !attributeExists ("bboxGlobalMinX",$item)
+|| !attributeExists ("bboxGlobalMinY",$item)
+|| !attributeExists ("bboxGlobalMinZ",$item)
+|| !attributeExists ("bboxGlobalMaxX",$item)
+|| !attributeExists ("bboxGlobalMaxY",$item)
+|| !attributeExists ("bboxGlobalMaxZ",$item)
+)
+	{
+	addAttr -ln bboxGlobalMinX -at double $item;
+	addAttr -ln bboxGlobalMinY -at double $item;
+	addAttr -ln bboxGlobalMinZ -at double $item;
+	addAttr -ln bboxGlobalMaxX -at double $item;
+	addAttr -ln bboxGlobalMaxY -at double $item;
+	addAttr -ln bboxGlobalMaxZ -at double $item;
+	if ($visible)
+		{
+		setAttr -e -keyable true ($item + ".bboxGlobalMinX");
+		setAttr -e -keyable true ($item + ".bboxGlobalMinY");
+		setAttr -e -keyable true ($item + ".bboxGlobalMinZ");
+		setAttr -e -keyable true ($item + ".bboxGlobalMaxX");
+		setAttr -e -keyable true ($item + ".bboxGlobalMaxY");
+		setAttr -e -keyable true ($item + ".bboxGlobalMaxZ");
+		}
+	}
+float $BB[] = bboxObjectByVertices ($item);
+setAttr ($item + ".bboxGlobalMinX") $BB[0];
+setAttr ($item + ".bboxGlobalMinY") $BB[1];
+setAttr ($item + ".bboxGlobalMinZ") $BB[2];
+setAttr ($item + ".bboxGlobalMaxX") $BB[3];
+setAttr ($item + ".bboxGlobalMaxY") $BB[4];
+setAttr ($item + ".bboxGlobalMaxZ") $BB[5];
+}
+}
+
+global proc string findSkinClusterFromJoint(string $node)
+{
+//$node = sel1();
+string $skinClusters[] = `ls -type skinCluster`;
+string $skin;
+string $skinCluster;
+for ($skin in $skinClusters)
+	{
+//$skin = $skinClusters[0];
+	$infs = `skinCluster -q -inf $skin`;
+	int $num = forInNum($node, $infs);
+	if ($num != -1)
+		{
+		$skinCluster = $skin;
+		break;
+		}
+	}
+//print $skinCluster;
+return $skinCluster;
+}
+
+
+global proc float angleD (vector $v1, vector $v2)
+{
+$angle = rad_to_deg(`angle $v1 $v2`);
+return $angle;
+}
+
+global proc float[] bboxObjectByVertices(string $object)
+{
+//$object = sel1();
+$vertices = conv({$object}, "v");
+float $x[];
+float $y[];
+float $z[];
+string $vertex;
+float $pos[] = {};
+for ($vertex in $vertices)
+	{
+	$pos = `pointPosition $vertex`;
+	$x[`size $x`] = $pos[0];
+	$y[`size $y`] = $pos[1];
+	$z[`size $z`] = $pos[2];
+	}
+float $BB[] = {};
+$BB[0] = minOf($x);
+$BB[1] = minOf($y);
+$BB[2] = minOf($z);
+$BB[3] = maxOf($x);
+$BB[4] = maxOf($y);
+$BB[5] = maxOf($z);
+//print $BB;
+return $BB;
+}
+
+global proc string[] conv(string $itemsForConv[], string $mode)
+{
+$itemsForConv = `ls -fl $itemsForConv`;
+
+string $converted[] = {};
+if ($mode == "v")
+	$converted = `polyListComponentConversion -tv $itemsForConv`;
+else if ($mode == "e")
+	$converted = `polyListComponentConversion -te $itemsForConv`;
+else if ($mode == "f")
+	$converted = `polyListComponentConversion -tf $itemsForConv`;
+else if ($mode == "u")
+	$converted = `polyListComponentConversion -tuv $itemsForConv`;
+else if ($mode == "vf")
+	$converted = `polyListComponentConversion -tvf $itemsForConv`;
+
+else if ($mode == "vi")
+	$converted = `polyListComponentConversion -tv -in $itemsForConv`;
+else if ($mode == "ei")
+	$converted = `polyListComponentConversion -te -in $itemsForConv`;
+else if ($mode == "fi")
+	$converted = `polyListComponentConversion -tf -in $itemsForConv`;
+else if ($mode == "ui")
+	$converted = `polyListComponentConversion -tuv -in $itemsForConv`;
+else if ($mode == "vfi")
+	$converted = `polyListComponentConversion -tvf -in $itemsForConv`;
+else
+	print "wrong argument";
+$converted = `ls -fl $converted`;
+return $converted;
+}
+
+global proc vector floatToVector(float $float[])
+{
+return <<$float[0], $float[1], $float[2]>>;
+}
+
+global proc string whatIsIt (string $sel)
+{
+if (`size $sel` == 0)
+	return "0";
+int $counter = 1;
+for ($counter = 1; $counter < `size $sel`; $counter++)
+	{
+	if (`substring $sel $counter $counter` == "[")
+		{
+		break;
+		}
+	}
+
+if (`size $sel` == $counter)
+	return "o";
+else
+	{
+	if (`substring $sel ($counter - 1) ($counter - 1)` == "x")
+		return "v";
+	else if (`substring $sel ($counter - 1) ($counter - 1)` == "e")
+		return "e";
+	else if (`substring $sel ($counter - 1) ($counter - 1)` == "f")
+		return "f";
+	else if (`substring $sel ($counter - 1) ($counter - 1)` == "p")
+		return "u";
+	else
+		return "";
+	}
+return "";
+}
+
+global proc string sel1()
+{
+$sel = `ls -sl -fl`;
+return $sel[0];
+}
+
+global proc float minOf(float $nums[])
+{
+//float $nums[] = {1.0,2.0,3.0,4.0,5.0};
+float $min = min($nums[0], $nums[1]);
+
+for ($num in $nums)
+	{
+	if ($num < $min)
+		$min = $num;
+	}
+return $min;
+}
+
+global proc float maxOf(float $nums[])
+{
+//float $nums[] = {1.0,2.0,3.0,4.0,5.0};
+float $max = max($nums[0], $nums[1]);
+
+for ($num in $nums)
+	{
+	if ($num > $max)
+		$max = $num;
+	}
+return $max;
+}
+
+
+global proc float[] vectorToFloat(vector $vector)
+{
+return {($vector.x), ($vector.y), ($vector.z)};
+}

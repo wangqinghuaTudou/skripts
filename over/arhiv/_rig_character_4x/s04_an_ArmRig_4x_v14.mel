@@ -1,0 +1,722 @@
+/*! ## Скрипт для сетапа передних лап четвероногого персонажа.  Версия 9.01 (14.03.12)
+> 1. Ориентация должна быть для всех косточек левой руки и плеча Z внутрь.
+> 2. С крипт работает с скелетом skeleton_quadruped_.mb
+*/
+
+/*! ## Что нового:
+> 1.Установил систему удаления рига.
+> 2."Спейс" констрейны зацепил за группу "ори".
+> 3.Добавил доболнительные атрибуты управления "кистью"
+> 4.Переделал фк систему - отказались цеплять шейп на кости.
+> 5.Сделал автоплечо отдельно от рига руки.
+
+
+
+*/
+/*! ##
+>_________________________________________________________________________________
+>©2012 Andrey Belyaev        www.3drigging.com
+*/
+
+global proc s04_an_ArmRig_4x_v14()
+{
+    $win = "an_Arm_win";
+    if (`window -exists $win`)
+deleteUI $win;
+window -t "Arm rigging tools 4x v.12" -w 460 -h 320 -s true -rtf true -menuBar true $win;
+	menu -label "File" -tearOff true;
+    		menuItem -label "Load L_hand preset" -command "loadPreset(\"Left\")";
+    		menuItem -label "Load R_hand preset" -command "loadPreset(\"Right\")" ;
+columnLayout -adj true -co "both" 10;
+	 radioButtonGrp -l "Side:" -nrb 2 -la2 "Left" "Right" -sl 1 RBG_armSide;
+separator   -st "none" -h 6;
+	 textFieldButtonGrp -l "Arm joint:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_armJnt;" TFBG_armJnt;
+	 textFieldButtonGrp -l "Revers joint:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_armReversJnt;" TFBG_armReversJnt;
+separator -h 10;//////////////////
+		textFieldButtonGrp -label "Head jnt:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_armHeadAuxobg;" TFBG_armHeadAuxobg;
+		textFieldButtonGrp -label "Torso jnt:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_armTorsoAuxobg;" TFBG_armTorsoAuxobg;
+		textFieldButtonGrp -label "Pelvis jnt:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_armPelvisAuxobg;" TFBG_armPelvisAuxobg;
+separator   -h 6; ///////////////////
+  	 textFieldButtonGrp -l "Switch_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_armSwitchCtrl;" TFBG_armSwitchCtrl;
+	 textFieldButtonGrp -l "Parent_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_armParentCtrl;" TFBG_armParentCtrl;
+separator -st "none" -h 6;
+			rowColumnLayout -nc 3   -cw 1 140 -cw 2 140 -cw 3 140 ;
+			 button   -l  "Help" -c "an_help( \"s04_an_ArmRig_4x_v12.mel\");";
+			 button   -l "Delete arm rig" -c "an_deleteArm_4x_Rig()";
+			 button   -l "Make arm rig" -c "an_doArmRig()";
+			 setParent ..;
+showWindow $win;
+}
+
+
+
+global proc an_doArmRig() ////////////////////////////////////////////////////////////////////
+ {
+ 							 an_ArmFolders(`an_CtNames`, `an_FldNames`); //создаем папки
+ 							 an_recordArmVal_4x( );
+ string $reversOut[]= 		 an_reversArmIK (); //размещаем контроллер кисти и делаем реверс.
+ string $elbowCtrl[]= 		 an_ikArmElbowRig_4x ( `an_CtNames`, `an_FldNames`); //размещаем локтевой контроллер.
+ string $fkJnt[]=    		 an_fkArmRig (`an_CtNames`, `an_FldNames`); //фк риг.
+ string $ikJnt[]=   		 an_ikArmRig ($reversOut[1] ); // ик риг.
+ 							 an_armIkFkMix ( $fkJnt, $ikJnt); //миксуем цепочки.
+ for ($each in `an_CtNames`) an_setJntRotOrder ($each);// выставляем ротейшн ордер...
+ for ($each in `an_CtNames`) pvAddLimbAttr ($each, (`an_armSide`+"arm"));// добовляет аттрибут лимб...
+ 							 an_doMatchObjects (`an_CtNames`, $ikJnt, $fkJnt);
+ 							 an_AddLengthAttr ($ikJnt, $fkJnt);
+ 							 an_ikFkArmServiceProc ( $ikJnt, `an_CtNames` );
+ }
+
+
+global proc   _________RigProc___________() {}//////////////////////////////////////////////////////////////////////
+
+
+global proc string[] an_ArmFolders(string $CtNams[], string $FdNams[]) //создаем папки
+{
+string $ParentCtrl = `textFieldGrp -q -text TFBG_armParentCtrl`;
+string $switch = `textFieldGrp -q -text TFBG_armSwitchCtrl`;
+string $IKgrp = ` group -em -n $FdNams[2] `;
+string $FKgrp = ` group -em -n $FdNams[1] `;
+string $General_grp = ` group  -n $FdNams[0] $IKgrp $FKgrp `;
+parent $General_grp $ParentCtrl;
+
+int $ctColor;
+if ((`radioButtonGrp -q -sl RBG_armSide`)==1) {$ctColor=18; } else {$ctColor=13; }  /////// Определяем цвета контроллеров
+addAttr -ln "ctColor"  -at long  -min 1 -max 31 -dv $ctColor  -keyable true $FdNams[0];
+
+an_connector (($switch+"."+`an_armSide`+"armCtrls"), $General_grp+".v", 1 );
+return {$General_grp, $FKgrp, $IKgrp};
+}
+
+
+global proc an_recordArmVal_4x( ) //создаем папки
+{
+string $Jnt[]	= an_childCapture (`textFieldButtonGrp -q -tx TFBG_armJnt`);
+string $revJnt[] = an_childCapture (`textFieldButtonGrp -q -tx TFBG_armReversJnt`);
+an_saveOriginalValues($Jnt);
+an_saveOriginalValues($revJnt);
+}
+
+
+global proc string[] an_reversArmIK ( )
+{
+string $CtNams[]= `an_CtNames`;
+string $FdNams[]= `an_FldNames`;
+		string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+		string $Jnt[]	= an_childCapture (`textFieldButtonGrp -q -tx TFBG_armJnt`);
+		string $lsNams[] = `an_NamesList_v02 -ctrl`;
+		string $revJnt[] = an_childCapture (`textFieldButtonGrp -q -tx TFBG_armReversJnt`);
+		string $ParentCtrl = `textFieldGrp -q -text TFBG_armParentCtrl`;
+		string $torsoCtrl = `textFieldGrp -q -text TFBG_armTorsoAuxobg`;
+		string $switch = `textFieldGrp -q -text TFBG_armSwitchCtrl`;
+		string $headCtrl = `textFieldGrp -q -text TFBG_armHeadAuxobg`;
+		string $pelvisCtrl = `textFieldGrp -q -text TFBG_armPelvisAuxobg`;
+
+
+string $wristCtrl[] = an_makeCtrl ($CtNams[2], "-ikFoot", "", "", ($FdNams[0]+".ctColor"), {  "sx", "sy", "sz", "v"}, { "sx", "sy", "sz", "v"} ); //контроллер
+
+
+
+
+//string $tmp = an_Ctrl ("-ikFoot", $CtNams[2]);                  ////////////////// создаем и размещаем контроллер
+		//string $wristCtrl[] = an_ctGrp ($tmp);
+		//xform -os -piv 0 0 0;
+		//an_ctColor ($wristCtrl[2], $switch, `radioButtonGrp -q -sl RBG_armSide`) ;  ///коннектим цвет
+		string $temp[] = `pointConstraint $revJnt[7] $wristCtrl[0]`; delete $temp[0];    // размещаем группы с контроллером
+		//$temp = `aimConstraint  -aim 0 0 1 -u 0 1 0   -skip x -skip z $revJnt[4] $wristCtrl[0]`; delete $temp[0];
+
+string $attr[]=  {"reversAttributes", "toeRoll","ballRoll","heelRoll", "toeTwist", "ballTwist", "heelTwist", "Side" ,"Fingers", "FingersBend_1","FingersBend_2"}; //добоаляем атрибуты и конектим
+		int $caunt;
+		for ($caunt=0; $caunt<11; $caunt++)
+				{
+				addAttr   -ln $attr[$caunt] -dv 0   -keyable true  $wristCtrl[2] ;
+				if ($caunt==0  || $caunt==8) {setAttr -lock true ($wristCtrl[2]+"."+$attr[$caunt]);}
+				}
+		connectAttr ($wristCtrl[2]+"."+$attr[1]) ($revJnt[4]+".rz" );//toeRoll
+		connectAttr ($wristCtrl[2]+"."+$attr[2]) ($revJnt[5]+".rz" );//ballRoll
+		connectAttr ($wristCtrl[2]+"."+$attr[3]) ($revJnt[2]+".rz" );//heelRoll
+
+		connectAttr ($wristCtrl[2]+"."+$attr[4]) ($revJnt[4]+".ry" );//toeTwist
+		connectAttr ($wristCtrl[2]+"."+$attr[5]) ($revJnt[3]+".ry" );//ballTwist
+		connectAttr ($wristCtrl[2]+"."+$attr[6]) ($revJnt[2]+".ry" );//heelTwist
+		setDrivenKeyframe -cd ($wristCtrl[2]+"."+$attr[7]) -dv 0  -v 0 ($revJnt[0]+".rz");
+		setDrivenKeyframe -cd ($wristCtrl[2]+"."+$attr[7]) -dv 180  -v 180 ($revJnt[0]+".rz");
+		setDrivenKeyframe -cd ($wristCtrl[2]+"."+$attr[7]) -dv 0  -v 0 ($revJnt[1]+".rz");
+		setDrivenKeyframe -cd ($wristCtrl[2]+"."+$attr[7]) -dv -180  -v 180 ($revJnt[1]+".rz");
+
+string $objects[]={$ParentCtrl, $pelvisCtrl, $torsoCtrl, $headCtrl  };  //создаем спейсы
+		string $attr[]= {$lsNams[1], $lsNams[4], $lsNams[7], $lsNams[9]};
+		an_spaceMaker_v3_0  (0,$objects, $attr, $wristCtrl[0], $wristCtrl[2], 1 );
+
+string $tempM[] = `orientConstraint $Jnt[3] $revJnt[7]`; delete $tempM[0]; //ориентируем конец реверс цепочки по косточке ханд.
+
+string $JntGrp = `group -n ( an_pfxMinus($CtNams[2])+"_reversJnt"+$Sfx[5]) $revJnt[0]` ; // создаем группы с ригом и костями
+
+parentConstraint -mo $wristCtrl[2] $JntGrp; //парентим кости к контроллеру ноги.
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// система "нижнего локтя"
+
+string $targA[] = `spaceLocator -n ($revJnt[6]+"AutoTarg") -p 0 0 0`; // содаем целевой обьект
+		an_aligneObg ($targA[0], $Jnt[2], "-all" );
+
+string $targM[] = `spaceLocator -n ($revJnt[6]+"ManualTarg") -p 0 0 0`; // содаем целевой обьект
+		an_aligneObg ($targM[0], $Jnt[3], "-all" );
+
+string $aimGrp  = `group -em -n ($revJnt[6]+"AimGrp")`;
+		an_aligneObg ($aimGrp, $Jnt[4], "-all" );
+
+string $aimCon[];
+if (`getAttr ($Jnt[1]+".tx")`>0) $aimCon = `aimConstraint -aimVector 1 0 0 -upVector 0 0 1 -worldUpType "objectrotation" -worldUpVector 0 0 1  -worldUpObject $revJnt[5]  $targA[0] $targM[0] $aimGrp `;
+else 							   $aimCon = `aimConstraint -aimVector -1 0 0 -upVector 0 0 -1 -worldUpType "objectrotation" -worldUpVector 0 0 1 -worldUpObject $revJnt[5] $targA[0] $targM[0] $aimGrp `;
+
+string $dwCtrl[] = an_makeCtrl ($CtNams[6], "-poleVector2", $Jnt[3], "", ($FdNams[0]+".ctColor"), {  "sx", "sy", "sz", "v"}, {"rx", "ry", "rz","sx", "sy", "sz", "v"} ); //контроллер
+		addAttr -ln "stretching" -dv 0   -min 0 -max 1 -keyable true  $dwCtrl[2];
+		addAttr -ln "auto"       -dv 0   -min 0 -max 1 -keyable true  $dwCtrl[2];
+
+an_connector (($dwCtrl[2]+".auto"), ($aimCon[0]+"."+$targA[0]+"W0"), 1 );
+an_connector (($dwCtrl[2]+".auto"), ($aimCon[0]+"."+$targM[0]+"W1"), 0 );
+
+parent $dwCtrl[0] $aimGrp;
+
+if (`getAttr ($Jnt[1]+".tx")`>0)  aimConstraint -aimVector 1 0 0 -upVector 0 0 1 -worldUpType "objectrotation" -worldUpVector 0 0 1  -worldUpObject $revJnt[5]  $dwCtrl[2] $revJnt[6];
+else 							  aimConstraint -aimVector -1 0 0 -upVector 0 0 -1 -worldUpType "objectrotation" -worldUpVector 0 0 1 -worldUpObject $revJnt[5] $dwCtrl[2] $revJnt[6];
+
+string $DistMine[] = an_distans ($revJnt[6], $dwCtrl[2], ((an_sfxMinus ($revJnt[6]))+"_main") ); //длинна между плечом и ик.
+	float $val = `getAttr ($revJnt[7]+".tx") `;
+
+	string $reversDivide =`createNode -n ((an_sfxMinus ($revJnt[6]))+"_reversDivide"+$Sfx[13]) "multiplyDivide"`;
+
+		connectAttr $DistMine[0]  ($reversDivide+".input1X");
+		setAttr ($reversDivide+".input2X") 1;
+		if ($val<0) setAttr ($reversDivide+".input2X") -1;
+
+string $curvesBlend = `createNode -n ((an_sfxMinus ($revJnt[6]))+"_lengthBlend") "blendTwoAttr"`;
+		setAttr ($curvesBlend+".input[0]") $val ;
+		connectAttr -f ($reversDivide+".outputX")  ($curvesBlend+".input[1]");
+		connectAttr -f ($curvesBlend+".output") ($revJnt[7]+".tx");
+		connectAttr -f ($dwCtrl[2]+".stretching") ($curvesBlend+".attributesBlender");
+
+string $dwRigGrp  = `group   -n ($revJnt[6]+"AutoDwElbow") $aimGrp $targM[0] $DistMine[1] `;
+parentConstraint -mo  $revJnt[5] $dwRigGrp;
+
+//////////////////////////////////////////////////////////////zzzzzzzzz//////////////////////////////////////////////////////// система управления пальцами
+
+
+string $addJnt[] = an_duplicatAndRename($Jnt[4],  "_revers");  // копируем дополнительные косточки для реверса
+parent $addJnt[0] $revJnt[7];
+connectAttr -force ($revJnt[7]+".tx") ($addJnt[0]+".tx");
+
+string $ikFingHandleB []=`ikHandle -n ( an_pfxMinus($revJnt[5])+"_Fing1"+$Sfx[12]) -sol ikSCsolver -sj $addJnt[0]  -ee $addJnt[1] -shf off`; //среднее ик
+parent $ikFingHandleB [0] $revJnt[5];
+
+string $ikFingHandleC []=`ikHandle -n ( an_pfxMinus($revJnt[4])+"_Fing2"+$Sfx[12]) -sol ikSCsolver -sj $addJnt[1]  -ee $addJnt[2] -shf off`; //нижнее ик
+		string $toeIKGrp = `group -em -n ( an_pfxMinus($CtNams[1])+"_Fing2Rot"+$Sfx[5]) `;      //группа пальцев
+		an_aligneObg ($toeIKGrp, $revJnt[5], "-all" );
+		parent $toeIKGrp $revJnt[4];
+		setAttr 	($toeIKGrp+".r") 0 0 0 ;
+		parent $ikFingHandleC [0] $toeIKGrp;
+
+if ((`radioButtonGrp -q -sl RBG_armSide`)==1) an_connector (($CtNams[2]+".FingersBend_2"), ($toeIKGrp+".rz" ), 0 );
+else 										  an_connector (($CtNams[2]+".FingersBend_2"), ($toeIKGrp+".rz" ), 1 );
+
+string $RigGrp = `group -n ( an_pfxMinus($CtNams[2])+"ReversRig"+$Sfx[5]) $wristCtrl[0] $JntGrp  $dwRigGrp`; ////////////////////////////////////////////////остановился сдесь.
+xform -os -piv 0 0 0;
+parent $RigGrp $FdNams[2];
+an_delSys ({$wristCtrl[0], $ikFingHandleB [0], $ikFingHandleC [0],  $addJnt[0], $toeIKGrp  } , $FdNams[0]);
+an_connector (($switch+"."+`an_armSide`+"armIkFkSwitch"), $wristCtrl[1]+".v", 1 );
+an_connector (($switch+"."+`an_armSide`+"armIkFkSwitch"), $dwCtrl[1]+".v", 1 );
+an_connectRigVis ($FdNams[0],  {$revJnt[0], $targM[0] });
+return {$wristCtrl[2], $targA[0]};
+}
+
+
+
+
+
+
+global proc string[] an_ikArmElbowRig_4x ( string $CtNams[], string $FdNams[])
+{
+string $CtNams[]= `an_CtNames`;
+string $FdNams[]= `an_FldNames`;
+
+string $ParentCtrl = `textFieldGrp -q -text TFBG_armParentCtrl`;
+string $torsoCtrl = `textFieldGrp -q -text TFBG_armTorsoAuxobg`;
+string $switch = `textFieldGrp -q -text TFBG_armSwitchCtrl`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $Jnts[] = an_childCapture (`textFieldGrp -q -text TFBG_armJnt`);
+
+setAttr ($Jnts[2]+".preferredAngleZ") 60;//устанавливаем префангл.
+
+string $Input [] = {  $CtNams[1], $switch, $Jnts[2], $FdNams[2] };
+
+float  $side = 1;
+if  ((`radioButtonGrp -q -sl RBG_armSide`)== 1) $side=1; else $side=2;
+float $flInput [] = {0.0, $side};
+
+string $spaceObjects[]= {$ParentCtrl, $CtNams[2], $torsoCtrl};
+string $spaceAttr[]= {"general", "foot", "torso"  };
+string $ElbowCtrl[] = an_polVectorCtrl ( $Input ,  $flInput,  $spaceObjects, $spaceAttr);
+
+for ($each in {".rx", ".ry", ".rz"}) setAttr -keyable false -channelBox false  ($ElbowCtrl[2]+$each) ;
+
+an_delSys ({$ElbowCtrl[0]} , $FdNams[0]);
+return $ElbowCtrl ;
+ }
+
+
+global proc string[] an_fkArmRig ( string $CtNams[], string $FdNams[]) /////////////////////////////////
+{
+
+string $CtNams[]= `an_CtNames`;
+string $FdNams[]= `an_FldNames`;
+
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $Jnt[]	= an_childCapture (`textFieldButtonGrp -q -tx TFBG_armJnt`);
+string $ParentCtrl = `textFieldGrp -q -text TFBG_armParentCtrl`;
+string $switch = `textFieldGrp -q -text TFBG_armSwitchCtrl`;
+string $torso = `textFieldGrp -q -text TFBG_armTorsoAuxobg`;
+
+string $fkJnt[] = an_duplicatAndRename($Jnt[0],("Fk"+$Sfx[3]));  //делаем фк косточки
+
+
+string $temp = an_Ctrl ("-fk", $CtNams[5]);						//кисть
+		string $handCtrl[] = an_ctGrp ($temp);
+		string $tmp[] = `parentConstraint $fkJnt[3]  $handCtrl[0]`; delete $tmp[0];
+		parentConstraint $handCtrl[2] $fkJnt[3];
+
+			addAttr   -ln "FingersBend_1"  -dv 0   -keyable true  $handCtrl[2] ;
+			addAttr   -ln "FingersBend_2"  -dv 0   -keyable true  $handCtrl[2] ;
+
+			setDrivenKeyframe -cd ($handCtrl[2]+".FingersBend_1") -dv -350 -v 350 ($fkJnt[4]+".rz");
+			setDrivenKeyframe -cd ($handCtrl[2]+".FingersBend_1") -dv 350 -v -350 ($fkJnt[4]+".rz");
+
+			setDrivenKeyframe -cd ($handCtrl[2]+".FingersBend_2") -dv -350 -v 350 ($fkJnt[5]+".rz");
+			setDrivenKeyframe -cd ($handCtrl[2]+".FingersBend_2") -dv 350 -v -350 ($fkJnt[5]+".rz");
+
+string $temp = an_Ctrl ("-fk", $CtNams[4]); 						//локоть
+		string $forearmCtrl[] = an_ctGrp ($temp);
+		string $tmp[] = `parentConstraint $fkJnt[2]  $forearmCtrl[0]`; delete $tmp[0];
+		parentConstraint  $forearmCtrl[2] $fkJnt[2] ;
+		parent $handCtrl[0] $forearmCtrl[2];
+			addAttr   -ln "length" -dv 1  -min 0 -max 5  -keyable true  $forearmCtrl[2] ;
+			string $lengthMult = `createNode   "multiplyDivide"`;
+			setAttr ($lengthMult+".input2X") (`getAttr ($fkJnt[3]+".tx")`);
+			connectAttr -f ($forearmCtrl[2]+".length") ($lengthMult+".input1X");
+			connectAttr -f ($lengthMult+".outputX")   ($handCtrl[0]+".tx");
+
+string $temp = an_Ctrl ("-fk", $CtNams[3]);									//плечо
+		string $armCtrl[] = an_ctGrp ($temp);
+		string $tmp[] = `parentConstraint $fkJnt[1]  $armCtrl[0]`; delete $tmp[0];
+		parentConstraint  $armCtrl[2] $fkJnt[1]  ;
+		parent $forearmCtrl[0] $armCtrl[2];
+
+				addAttr   -ln "length" -dv 1  -min 0 -max 5  -keyable true  $armCtrl[2] ;
+				string $lengthMult = `createNode   "multiplyDivide"`;
+				setAttr ($lengthMult+".input2X") (`getAttr ($fkJnt[2]+".tx")`);
+				connectAttr -f ($armCtrl[2]+".length") ($lengthMult+".input1X");
+				connectAttr -f ($lengthMult+".outputX")   ($forearmCtrl[0]+".tx");
+
+an_ctColor ($armCtrl[2], $switch, `radioButtonGrp -q -sl RBG_armSide`) ;///коннектим цвет
+an_ctColor ($forearmCtrl[2], $switch, `radioButtonGrp -q -sl RBG_armSide`) ;///коннектим цвет
+an_ctColor ($handCtrl[2], $switch, `radioButtonGrp -q -sl RBG_armSide`) ;///коннектим цвет
+
+
+an_connector (($switch+"."+`an_armSide`+"armIkFkSwitch"), $armCtrl[2]+".v", -1 );
+an_hideAttr  ($handCtrl[2], {"tx","ty","tz",   "sx", "sy", "sz", "v"});
+an_hideAttr  ($forearmCtrl[2], {"tx","ty","tz",   "rx","ry",  "sx", "sy", "sz", "v"});
+an_hideAttr  ($armCtrl[2], {"tx","ty","tz", "sx", "sy", "sz", "v"});
+
+string $JntGrp = `group -n ( an_pfxMinus($CtNams[0])+"_fkJnt"+$Sfx[5]) $fkJnt[0] $armCtrl[0]`; //группа с костями
+parent $JntGrp $FdNams[1];
+parentConstraint -mo $fkJnt[0] $armCtrl[0]  ;
+
+string $objects[]={$ParentCtrl, $fkJnt[0] };          //создаем спейсы
+		an_spaceMaker_v2_0  (1,$objects, {"general", "shoulder"}, $armCtrl[1], $armCtrl[2]);
+
+renameAttr ($armCtrl[2]+".rot_space") "space";
+
+an_delSys ({$armCtrl[1]} , $FdNams[0]);
+
+an_connectRigVis ($FdNams[0],  {$fkJnt[0]});
+return $fkJnt ;
+
+}
+
+
+global proc string[]  an_ikArmRig (string $revercTarget)  //////////////////////////////////////////////
+{
+string $CtNams[] = `an_CtNames`;
+string $FdNams[] = `an_FldNames`;
+
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $switch = `textFieldGrp -q -text TFBG_armSwitchCtrl`;
+string $Jnt[]	= an_childCapture (`textFieldButtonGrp -q -tx TFBG_armJnt`);
+string $revJnt[] = an_childCapture (`textFieldButtonGrp -q -tx TFBG_armReversJnt`);
+string $torsoJnt = `textFieldGrp -q -text TFBG_armTorsoAuxobg`;
+string $ParentCtrl = `textFieldGrp -q -text TFBG_armParentCtrl`;
+
+														/////////////////////дублируем косточки....
+string $ikJnt[] = an_duplicatAndRename($Jnt[0],  "_IkJnt");  // создаем ик цепочку
+   															/////////////////////контроллер плеча
+string $tmp = an_Ctrl ("-shoulder", $CtNams[0]);
+	string $shoulderCtrl[] = an_ctGrp ($tmp);
+	an_ctColor ($shoulderCtrl[2], $switch, `radioButtonGrp -q -sl RBG_armSide`) ;
+	string $tmpM[]	= `pointConstraint $ikJnt[1] $shoulderCtrl[0]`; delete $tmpM[0];
+
+
+string $shoulderGrp[] =  an_autoShoulderRig ( $ikJnt, {$CtNams[2], $CtNams[1], $CtNams[0] }, $revercTarget) ;
+parent 	 $shoulderGrp[0] $FdNams[2] ;
+
+string $mineIk[] =	an_soft2JntIK( $ikJnt[1] ,  $CtNams[1] );         //стретч ик
+	connectAttr  ($CtNams[1]+".lock") ($mineIk[0]+".lock");
+	connectAttr  ($CtNams[2]+".stretching") ($mineIk[0]+".stretching");
+	connectAttr  ($CtNams[2]+".upLength") ($mineIk[0]+".upLength");
+	connectAttr  ($CtNams[2]+".dwLength") ($mineIk[0]+".dwLength");
+	connectAttr  ($CtNams[2]+".softness") ($mineIk[0]+".softnes");
+	connectAttr  ($CtNams[2]+".softIK") ($mineIk[0]+".softIK");
+	connectAttr  ($switch+"."+`an_armSide`+"armIkFkSwitch")  ($CtNams[0]+".ikFkShoulderOff");
+
+	parent  $mineIk[0] $revJnt[7];
+	parent $mineIk[1] $FdNams[2];
+
+an_hideAttr  ($shoulderCtrl[2], { "rx", "ry", "rz", "sx", "sy", "sz", "v"});
+an_connectRigVis ($FdNams[0],  {$ikJnt[0] });
+
+string $ikHandleF []=`ikHandle -n ( an_pfxMinus($CtNams[0])+"_FingFoot"+$Sfx[12]) -sol ikSCsolver -sj $ikJnt[3]  -ee $ikJnt[4] -shf off`; //верхнее ик
+parent 	$ikHandleF[0]   $revJnt[6];
+string $toeIKGrp = `group -em -n ( an_pfxMinus($CtNams[1])+"_Fing"+$Sfx[5]) `;      //группа пальцев                        //риг носка
+string $toeOfsetIKGrp = `group  -n ( an_pfxMinus($CtNams[1])+"_Fing_Offset"+$Sfx[5]) `;
+string $tmpB[]  = `parentConstraint $revJnt[6] $toeOfsetIKGrp`; delete $tmpB[0];    //позиционируем группу
+string $ikHandleA []=`ikHandle -n ( an_pfxMinus($CtNams[0])+"_FingA"+$Sfx[12]) -sol ikSCsolver -sj $ikJnt[4]  -ee $ikJnt[5] -shf off`;
+parent 	$ikHandleA[0]   $toeIKGrp;     //setAttr 	($ikHandleA[0]+".t") 0 0 0 ;
+
+
+if ((`radioButtonGrp -q -sl RBG_armSide`)==1) an_connector (($CtNams[2]+".FingersBend_1"), ($toeIKGrp+".rz" ), 1 );
+else 										  an_connector (($CtNams[2]+".FingersBend_1"), ($toeIKGrp+".rz" ), 0 );
+
+
+parent 	$toeOfsetIKGrp $revJnt[5];
+
+connectAttr ($revJnt[9]+".rz" ) ($ikJnt[5]+".rz" );
+connectAttr ($revJnt[9]+".ry" ) ($ikJnt[5]+".ry" );
+connectAttr ($revJnt[9]+".rx" ) ($ikJnt[5]+".rx" );
+
+connectAttr -force ($revJnt[7]+".tx") ($ikJnt[4]+".tx");
+
+an_delSys ({$mineIk[0], $mineIk[1], $toeIKGrp, $ikHandleF [0], $toeOfsetIKGrp, $ikJnt[0]  } , $FdNams[0]);
+return $ikJnt;
+}
+
+
+
+global proc string[]  an_autoShoulderRig ( string $Jnt[], string $Ctrl[], string $revercTarget) // контроллеры ик, полвектор и плечевой (должен быть в группе.)
+{
+string $FdNams[] = `an_FldNames`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+										                						/////////////////////дублируем косточки....
+string $aimJnt[] = an_duplicatAndRename($Jnt[0], "Aim"+$Sfx[3]);  // создаем aim цепочку
+		delete $aimJnt[2];
+string $targetJnt[] =  an_duplicatAndRename($Jnt[0], "Target"+$Sfx[3]);    // создаем target цепочку
+		string $childNames[] = `listRelatives -c $targetJnt[3]`;
+		for ($Child in $childNames)     delete $Child;
+
+ parent    	$revercTarget 	$targetJnt[2]; //парентим таргет обьект на который ориетнируется автокисть
+ setAttr ($revercTarget+".t") 0 0 0;
+		                                                             ///////////////////// создаем ик хандл....
+string $targetIk[] =	an_soft2JntIK ( $targetJnt[1] ,  $Ctrl[1] ); //стретч ик таргет
+	addAttr   -ln "lock_elbow" -dv 0   -keyable true  $Ctrl[1];
+		setAttr -lock true ($Ctrl[1]+".lock_elbow");
+	addAttr   -ln "lock" -dv 0 -min 0 -max 1  -keyable true  $Ctrl[1];
+		connectAttr  ($Ctrl[1]+".lock") ($targetIk[0]+".lock");
+	addAttr   -ln "additional" -dv 0   -keyable true  $Ctrl[0] ;
+		setAttr -lock true ($Ctrl[0]+".additional");
+	addAttr   -ln "stretching" -dv 1 -min 0 -max 1  -keyable true  $Ctrl[0] ;
+		connectAttr  ($Ctrl[0]+".stretching") ($targetIk[0]+".stretching");
+	addAttr   -ln "upLength" -dv 1 -min .01 -max 10  -keyable true  $Ctrl[0] ;
+		connectAttr  ($Ctrl[0]+".upLength") ($targetIk[0]+".upLength");
+	addAttr   -ln "dwLength" -dv 1 -min .01 -max 10  -keyable true  $Ctrl[0] ;
+		connectAttr  ($Ctrl[0]+".dwLength") ($targetIk[0]+".dwLength");
+	addAttr   -ln "softness" -dv 0 -min 0 -max 1  -keyable true  $Ctrl[0] ;
+		connectAttr  ($Ctrl[0]+".softness") ($targetIk[0]+".softnes");
+	addAttr -ln "softIK"  -at "enum" -en "on:off"   -keyable true $Ctrl[0];
+		connectAttr  ($Ctrl[0]+".softIK") ($targetIk[0]+".softIK");
+    parent  $targetIk[0] $Ctrl[0];
+																	//////////////////////создаем автоплечо
+string $ikShldHandle[]=`ikHandle   -n ($aimJnt[0]+"_Shoulder_ik") -sol ikSCsolver -shf 0 -sj $aimJnt[0] -ee $aimJnt[1] `; //ик хандл плеча аим плеча
+		string $tmp[]	= `pointConstraint $targetJnt[2] $ikShldHandle[0]`; delete $tmp[0]; //выстовляем аим косточку как надо
+		parent $ikShldHandle[0] $targetJnt[0];
+		string $autoMixPoint = `group -em -n ($aimJnt[0] +"mixPoint")`; //группа нолевого автоплеча
+		string $tmp[]	= `parentConstraint $aimJnt[1] $autoMixPoint`; delete $tmp[0];
+		parent $autoMixPoint $targetJnt[0];
+		string $autoShldrCnstr[] = `pointConstraint   $targetJnt[2] $autoMixPoint $ikShldHandle[0]`;
+
+string $manualShldHandle[]=`ikHandle -n ($aimJnt[0]+"_manual_ik") -sol ikSCsolver -shf 0 -sj $Jnt[0] -ee $Jnt[1]`;  /// хандл плеча управляемого в ручную
+
+string  $souldCtGrp[];
+$souldCtGrp[2]= $Ctrl[2];   string  $tmp[] = `listRelatives -p $Ctrl[2]`;
+$souldCtGrp[1]= $tmp[0] ;   string  $tmp[] = `listRelatives -p $souldCtGrp[1]`;
+$souldCtGrp[0]= $tmp[0] ;
+
+ parent $manualShldHandle[0] $souldCtGrp[2];
+
+ string $autoSHLDGrp = `group -n (an_sfxMinus($Ctrl[0])+"AutoShoulderRig"+$Sfx[5]) $targetIk[1] $souldCtGrp[0]`; //создаем общую группу
+xform -os -piv 0 0 0;
+
+	addAttr   -ln "AutoShoulder" -dv 0 -min 0 -max 1  -keyable true  $Ctrl[2] ;
+	addAttr   -ln "ikFkShoulderOff" -dv 1 -min 0 -max 1  -keyable false  $Ctrl[2] ;///атрибут отключающий автоплечо в фк режиме
+
+string $blend = `createNode -name ( an_pfxMinus($Ctrl[2])+"_blend") "blendTwoAttr"`;  // создание бленд ноды отключающей автомат
+	connectAttr  ($Ctrl[2]+".ikFkShoulderOff") ($blend+".attributesBlender");//////////////////&&&&&&&&&&
+	setAttr ($blend+".input[0]") 0;
+	connectAttr  ($Ctrl[2] +".AutoShoulder") ($blend+".input[1]");
+
+	an_connector (($blend+".output"), ($autoShldrCnstr[0]+"."+$autoMixPoint +"W1"), -1 ); //управление констрейном автомата
+	connectAttr ($blend+".output") ($autoShldrCnstr[0]+"."+$targetJnt[2] +"W0");
+
+	parentConstraint -mo $aimJnt[1] $souldCtGrp[1] ;
+																					//система растяжения плеча
+addAttr   -ln "stretching" -dv 0 -min 0 -max 1  -keyable true  $Ctrl[2] ;
+
+		string $strSholderBlend = `createNode -name ( an_pfxMinus($Ctrl[2])+"_strSholder") "blendTwoAttr"`;  // создание бленд ноды отключающей расстяжение плеча
+		connectAttr  ($Ctrl[2]+".stretching") ($strSholderBlend+".attributesBlender");
+		setAttr ($strSholderBlend+".input[0]") (`getAttr ($Jnt[1]+".tx")`) ;
+		string $shoulderDistans[] = an_distans ($Ctrl[2], $Jnt[0], "shoulder" );
+
+		if ((`getAttr ($Jnt[2]+".tx")`)>0)                                          /// если значение икса положительно то дистанс конектится напрямую
+				{ connectAttr  $shoulderDistans[0] ($strSholderBlend+".input[1]") ;    }
+		else
+				{
+				string $revers = `createNode -name ($Jnt[0]+"_revers#") "multiplyDivide"`;   // если нет то через реверс ноду
+				connectAttr  $shoulderDistans[0]  ($revers+".input1X");
+				setAttr ($revers+".input2X") -1;
+				connectAttr  ($revers+".outputX") ($strSholderBlend+".input[1]") ;
+				 }
+
+		connectAttr  ($strSholderBlend+".output") ($Jnt[1]+".tx") ;
+	 	parent   $shoulderDistans[1] $autoSHLDGrp;
+
+an_connectRigVis ( $autoSHLDGrp,  {$targetIk[0], $ikShldHandle[0], $aimJnt[0], $targetJnt[0], $manualShldHandle[0] });
+an_lockAttr ({ $targetIk[0], $ikShldHandle[0], $manualShldHandle[0]}) ;
+
+
+
+an_delSys ({ $aimJnt[0], $targetJnt[0], $strSholderBlend} , $FdNams[0]);
+
+
+
+
+
+return {$autoSHLDGrp, ""};
+}
+
+
+global proc  an_armIkFkMix( string $fkJnt[], string $ikJnt[])
+{
+
+string $CtNams[]= `an_CtNames`;
+string $FdNams[]= `an_FldNames`;
+
+string $Jnt[]	= an_childCapture (`textFieldButtonGrp -q -tx TFBG_armJnt`);
+string $switch = `textFieldGrp -q -text TFBG_armSwitchCtrl`;
+
+
+parentConstraint -mo $ikJnt[0] $Jnt[0];
+parentConstraint -mo $ikJnt[0] $fkJnt[0];
+													//Плечо
+pointConstraint   $ikJnt[1] $Jnt[1];
+
+an_mix3attr({($fkJnt[1]+".r"), ($ikJnt[1]+".r")}, ($Jnt[1]+".r"), ($switch+"."+`an_armSide`+"armIkFkSwitch"), ($ikJnt[1]+"nn") );
+an_mix3attr({($fkJnt[2]+".r"), ($ikJnt[2]+".r")}, ($Jnt[2]+".r"), ($switch+"."+`an_armSide`+"armIkFkSwitch"), ($ikJnt[2]+"nn") );
+an_mix3attr({($fkJnt[2]+".t"), ($ikJnt[2]+".t")}, ($Jnt[2]+".t"), ($switch+"."+`an_armSide`+"armIkFkSwitch"), ($ikJnt[2]+"nt") );
+an_mix3attr({($fkJnt[3]+".r"), ($ikJnt[3]+".r")}, ($Jnt[3]+".r"), ($switch+"."+`an_armSide`+"armIkFkSwitch"), ($ikJnt[3]+"nn") );
+an_mix3attr({($fkJnt[3]+".t"), ($ikJnt[3]+".t")}, ($Jnt[3]+".t"), ($switch+"."+`an_armSide`+"armIkFkSwitch"), ($ikJnt[3]+"nt") );
+an_mix3attr({($fkJnt[4]+".r"), ($ikJnt[4]+".r")}, ($Jnt[4]+".r"), ($switch+"."+`an_armSide`+"armIkFkSwitch"), ($ikJnt[4]+"nn") );
+an_mix3attr({($fkJnt[4]+".t"), ($ikJnt[4]+".t")}, ($Jnt[4]+".t"), ($switch+"."+`an_armSide`+"armIkFkSwitch"), ($ikJnt[4]+"nt") );
+
+
+an_mix3attr({($fkJnt[5]+".r"), ($ikJnt[5]+".r")}, ($Jnt[5]+".r"), ($switch+"."+`an_armSide`+"armIkFkSwitch"), ($ikJnt[5]+"nn") );
+an_delSys ({($ikJnt[1]+"nn"), ($ikJnt[2]+"nn"), ($ikJnt[2]+"nt"), ($ikJnt[3]+"nn"), ($ikJnt[3]+"nt"), ($ikJnt[4]+"nn"), ($ikJnt[4]+"nt"), ($ikJnt[5]+"nn") } , $FdNams[0]);
+}
+
+global proc an_doMatchObjects(string $CtNams[], string $ikJnt[], string $fkJnt[])
+//         l_upArm_CT   l_foreArm_CT   l_hand_CT //
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+
+string $machObj[];
+int $i;
+for ($i=1; $i<(size($CtNams));$i++)
+		{
+		$machObj[$i] = `group -em  -n ( an_pfxMinus($CtNams[$i])+$Sfx[10])`;
+		string $temp[] = `parentConstraint $CtNams[$i] $machObj[$i]`; delete $temp[0];
+
+		int $order = `getAttr ($CtNams[$i]+".rotateOrder")` ;
+		setAttr ($machObj[$i]+".rotateOrder") $order ;
+		}
+
+parent $machObj[1] $fkJnt[2]; //  elbowIk
+parent $machObj[2] $fkJnt[3]; //  handIk
+
+parent $machObj[3] $ikJnt[1]; //   upArm
+parent $machObj[4] $ikJnt[2]; //   foreArm
+parent $machObj[5] $ikJnt[3]; //   hand
+parent $machObj[6] $fkJnt[3]; //   dw_elbowIk
+
+}
+
+global proc an_AddLengthAttr ( string $ikJnt[], string $fkJnt[])
+{
+int $i;
+for ($i= 0; $i<3; $i++ )  pvAddLengthAttr ($ikJnt[$i]);
+
+for ($i= 0; $i<3; $i++ )  pvAddLengthAttr ($fkJnt[$i]);
+}
+
+
+global proc  an_ikFkArmServiceProc ( string $ikJnt[], string $CtNams[] ) //процедура создает механизм для корректроно переключения ик фк.
+{
+string $Jnt[]	= an_childCapture (`textFieldButtonGrp -q -tx TFBG_armJnt`);
+
+addAttr   -ln "K_soft"   -keyable true  $ikJnt[2] ;
+
+string $Blend = `createNode -name ( an_pfxMinus($CtNams[5])+"kSoft") "blendTwoAttr"`;
+	connectAttr -f ($Blend+".output ") ($ikJnt[2]+".K_soft");
+	connectAttr -f    ($CtNams[2]+".softness") ($Blend+".attributesBlender ") ;
+
+
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 0 -v 0      ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 15 -v 0.034 ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 30 -v 0.038 ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 45 -v 0.028 ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 60 -v 0.012 ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 65 -v 0     ($Blend+".input[0]");
+
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 0 -v 0      ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 15 -v 0.097 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 30 -v 0.135 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 45 -v 0.147 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 60 -v 0.137 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 75 -v 0.108 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 90 -v 0.07  ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 105 -v 0.025 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[2]+".rz") -dv 110 -v 0    ($Blend+".input[1]");
+
+string $curves[] = ` listConnections $Blend`;
+
+
+ keyTangent -e -a -f 0 -inAngle 0.00758467  -outAngle 0.00758467   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 15 -inAngle 0.0022837  -outAngle 0.0022837   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 30 -inAngle -0.000922274  -outAngle -0.000922274   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 45 -inAngle -0.00198057  -outAngle -0.00198057   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 60 -inAngle -0.00328864  -outAngle -0.00328864   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 65 -inAngle -0.00676812  -outAngle -0.00676812   -inWeight 1 $curves[2];
+
+ keyTangent -e -a -f 0 -inAngle 0.0226763  -outAngle 0.0226763   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 15 -inAngle 0.00834517  -outAngle 0.00834517   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 30 -inAngle 0.00397887  -outAngle 0.00397887   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 45 -inAngle 0  -outAngle 0  -inWeight 1 $curves[3];
+ keyTangent -e -a -f 60 -inAngle -0.00310352  -outAngle -0.00310352   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 75 -inAngle -0.00533169  -outAngle -0.00533169   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 90 -inAngle -0.00660493  -outAngle -0.00660493   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 105 -inAngle -0.00891482  -outAngle -0.00891482   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 110 -inAngle -0.0119366  -outAngle -0.0119366   -inWeight 1 $curves[3];
+}
+
+global proc   _________WorkProc___________() {}//
+
+
+global proc   an_deleteArm_4x_Rig ()
+{
+string $FdNams[]= `an_FldNames`;
+string $Jnt[] = an_childCapture (`textFieldGrp -q -text TFBG_armJnt`);
+string $reversJnt =  `textFieldButtonGrp -q -tx TFBG_armReversJnt` ;
+parent -w $reversJnt;
+an_delRig ($FdNams[0]);
+an_setOriginalValues($Jnt);
+setAttr ($reversJnt+".visibility") 1;
+}
+
+
+global proc string[] an_FldNames ( ) ////////////////////////////////////////////////////////////////////
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+return  { (`an_armSide`+"armRig"+$Sfx[5]), (`an_armSide`+"fkArmRig"+$Sfx[5]),
+		(`an_armSide`+"ikArmRig"+$Sfx[5])};
+}
+
+global proc string an_armSide ()
+{
+string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+ if ((`radioButtonGrp -q -sl RBG_armSide`)==1) {return $Pfx[0];} else {return $Pfx[1];}
+}
+
+
+global proc string[] an_CtNames ( ) ////////////////////////////////////////////////////////////////////
+{
+string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+string $listNams[] = `an_NamesList_v02 -ctrl`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+return {(`an_armSide`+$listNams[15]+$Sfx[9]),
+  		(`an_armSide`+$listNams[10]+$Sfx[9]),
+		(`an_armSide`+$listNams[11]+$Sfx[9]),
+		(`an_armSide`+$listNams[12]+$Sfx[9]),
+		(`an_armSide`+$listNams[13]+$Sfx[9]),
+		(`an_armSide`+$listNams[14]+$Sfx[9]),
+		(`an_armSide`+$Pfx[3]+$listNams[10]+$Sfx[9]) 	 };
+}
+
+
+
+
+
+
+global proc loadPreset (string $side)
+{
+string $jntNams[] = `an_NamesList_v02 -bones`;
+string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+string $ctNams[] = `an_NamesList_v02 -ctrl`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+
+if (`gmatch $side "Left"`)
+		{
+		radioButtonGrp -e -sl 1 RBG_armSide;
+		$side=$Pfx[0];
+		}
+
+else
+		{
+		radioButtonGrp -e -sl 2 RBG_armSide;
+		$side=$Pfx[1];
+		}
+
+textFieldButtonGrp -e -tx ($side+$jntNams[4]+$Sfx[4]) TFBG_armJnt;
+textFieldButtonGrp -e -tx ($side+$jntNams[18]+"1"+$Sfx[3]) TFBG_armReversJnt;
+textFieldButtonGrp -e -tx ($jntNams[3]+$Sfx[4]) TFBG_armHeadAuxobg;
+textFieldButtonGrp -e -tx ($jntNams[1]+"B"+$Sfx[4]) TFBG_armTorsoAuxobg;
+textFieldButtonGrp -e -tx ($jntNams[0]+$Sfx[4]) TFBG_armPelvisAuxobg;
+textFieldButtonGrp -e -tx ($ctNams[0]+$Sfx[9]) TFBG_armSwitchCtrl;
+textFieldButtonGrp -e -tx ($ctNams[2]+$Sfx[9]) TFBG_armParentCtrl;
+};
+
+
+global proc pvAddLimbAttr (string $objName, string $limbName)
+{
+    if (!`attributeExists "limb" $objName`)
+    {
+        addAttr -dt "string" -ln "limb" $objName ;
+        setAttr -type "string" ($objName + ".limb") $limbName ;
+        setAttr -l 1 ($objName + ".limb") ;
+    }
+    else
+    {
+        setAttr -l 0 ($objName + ".limb") ;
+        setAttr -type "string" ($objName + ".limb") $limbName ;
+        setAttr -l 1 ($objName + ".limb") ;
+    }
+};

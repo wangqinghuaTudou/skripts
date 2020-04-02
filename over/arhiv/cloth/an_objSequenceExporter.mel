@@ -1,0 +1,70 @@
+//-----------------------------------------------------------------------------------
+//                 OBJ Animation Exporter 0.1 Export OBJ Sequence Script
+//-----------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------------
+//	Author Info:		Mohammad Sadeh
+//					http://www.animation1on1.com/moanimate
+//-----------------------------------------------------------------------------------
+
+//---------------------------------------Notes----------------------------------------------------
+// 1) Select as many objects as you want to export.
+// 2) The exported OBJ sequence will be in the images folder in your current project.
+// 3) for rigged character just bake the animation to the geo in Maya then use the script to export the geo.
+// 4) do not change the path of the export then the script will not work.
+// 5) Make sure that "objExport.bundle" plugin is turn on in Maya or the script wont work.
+
+//------------------------------------------------------------------------------------------------
+
+//--------------------------------------Discription-------------------------------------------------
+// Make sure that "objExport.bundle" plugin is turn on in Maya or the script wont work.
+// Select the geo you want to export.
+// Make sure your timeline in set to the range that you want to export.
+// Run the script.
+//--------------------------------------------------------------------------------------------------
+
+global proc an_objSequenceExporter()
+
+{
+string $objInitFolder = (`workspace -q -rd` + "images");
+string $Mm = `window -title "OBJ Animation Exporter 0.1"  -widthHeight 375 325` ;
+
+		frameLayout -l "" -borderStyle "etchedIn" -mw 5 -mh 5;
+			columnLayout -adj 1;
+			text -label "OBJ Animation location: Do not change the path location!" ;
+				textFieldButtonGrp -l "Location"
+				-tx $objInitFolder
+				-bl "OBJ Location"
+				-cw 1 60
+				-cw 2 300 obj_folderCtrl;
+
+
+
+button -label "Cancel" -c ("deleteUI -window " + $Mm);
+button  -label "OK" -c "findText" ;
+showWindow $Mm;
+
+}
+
+global proc findText ()
+{
+string $seqPath = `textFieldButtonGrp -q -tx obj_folderCtrl`;
+string $padding ;
+$allTime = `playbackOptions -query -max`;
+int $i=0;
+for ($i=0; $i<=$allTime; $i++)
+	{
+	currentTime $i;
+	string $objItem = ($i+10000);
+	print $i;
+
+	string $objOutname = ($seqPath + "/" + $padding + "exp" + "_" + $objItem + "");
+				$objOutname = substituteAllString($objOutname, "|", "");
+
+
+			 	file -force -op "groups=0;ptgroups=0;materials=0;smoothing=1;normals=1" -chn 1 -sh 1 -exp 1 -con 0 -ch 0 -typ "OBJexport" -pr -es $objOutname;
+	}
+
+
+}
+

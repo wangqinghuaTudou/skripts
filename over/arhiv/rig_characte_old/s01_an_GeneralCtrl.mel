@@ -1,0 +1,133 @@
+global proc  s01_an_GeneralCtrl ()
+{
+    $win = "an_GeneralCtrl_win";
+    if (`window -exists $win`)
+deleteUI $win;
+window -t " General control creator" -w 350 -h 50 -s true -rtf true -menuBar true $win;
+
+columnLayout -adj true -co "both" 10;
+separator -st "none" -h 6;
+
+
+	 textFieldGrp -l "Name space:"  TFG_NS;
+separator -st "none" -h 6;
+			 button   -l "Create general control" -c "an_doGeneralCtrl()";
+
+showWindow $win;
+}
+
+
+
+
+
+global proc   an_doGeneralCtrl ()
+{
+string $listNams[] = `an_NamesList_v02 -ctrl`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+
+$switch = `curve  -d 1 -n ($listNams[0]+$Sfx[9]) -p 0 0.0420255 0 -p 8.30713e-008 1.942477 -0.633484 -p 0.633484 1.942477 0
+			-p 0 0.0420255 0 -p -0.633484 1.942477 -5.53809e-008 -p 8.30713e-008 1.942477 -0.633484
+			-p -0.633484 1.942477 -5.53809e-008 -p -2.76905e-008 1.942477 0.633484 -p 0 0.0420255 0 -p -2.76905e-008 1.942477 0.633484
+			-p 0.633484 1.942477 0 -p 0 3.842927 0 -p -2.76905e-008 1.942477 0.633484 -p -0.633484 1.942477 -5.53809e-008 -p 0 3.842927 0
+			-p 8.30713e-008 1.942477 -0.633484 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 `;
+
+
+
+addAttr   -ln "Ik_Fk" -dv 0 -min 0 -max 1 -keyable true  $switch ;
+setAttr -lock true    ($switch+".Ik_Fk");///////////////////////////////////////////////////
+addAttr   -ln "l_armIkFkSwitch" -dv 1 -min 0 -max 1 -keyable true  $switch ;
+addAttr   -ln "r_armIkFkSwitch" -dv 1 -min 0 -max 1 -keyable true  $switch;
+addAttr   -ln "l_legIkFkSwitch" -dv 1 -min 0 -max 1 -keyable true $switch ;
+addAttr   -ln "r_legIkFkSwitch" -dv 1 -min 0 -max 1 -keyable true  $switch ;
+addAttr -ln "bodyCtrls"  -at "enum" -en "both:ik:fk:none" -keyable 1 $switch;    /// спейс риг waistIk_CT
+setAttr -keyable false -channelBox true   ($switch+".bodyCtrls");
+
+addAttr   -ln "visCtrls" -dv 0 -min 0 -max 1 -keyable true  $switch ;
+setAttr -lock true    ($switch+".visCtrls");///////////////////////////////////////////////////
+addAttr   -ln "l_armCtrls" -dv 1 -min 0 -max 1 -keyable true  $switch ;
+		setAttr -keyable false -channelBox true ($switch+".l_armCtrls");
+addAttr   -ln "r_armCtrls" -dv 1 -min 0 -max 1 -keyable true $switch ;
+		setAttr -keyable false -channelBox true ($switch+".r_armCtrls");
+addAttr   -ln "l_legCtrls" -dv 1 -min 0 -max 1 -keyable true  $switch ;
+		setAttr -keyable false -channelBox true ($switch+".l_legCtrls");
+addAttr   -ln "r_legCtrls" -dv 1 -min 0 -max 1 -keyable true  $switch ;
+		setAttr -keyable false -channelBox true ($switch+".r_legCtrls");
+addAttr   -ln "addCtrls" -dv 1 -min 0 -max 1 -keyable true  $switch ;
+		setAttr -keyable false -channelBox true ($switch+".addCtrls");
+
+addAttr   -ln "visGeometry" -dv 0 -min 0 -max 1 -keyable false  $switch ;
+setAttr -lock true    ($switch+".visGeometry");///////////////////////////////////////////////////
+addAttr   -ln "l_armGeo" -dv 0 -min 0 -max 1 -keyable false  $switch ;
+addAttr   -ln "r_armGeo" -dv 0 -min 0 -max 1 -keyable false  $switch ;
+addAttr   -ln "l_legGeo" -dv 0 -min 0 -max 1 -keyable false  $switch ;
+addAttr   -ln "r_legGeo" -dv 0 -min 0 -max 1 -keyable false  $switch ;
+
+
+addAttr   -ln "colorCtrls" -dv 0 -min 0 -max 1 -keyable false  $switch ;
+      setAttr -lock true  ($switch+".colorCtrls");///////////////////////////////////////////////////
+addAttr   -ln "leftSide" -dv 18 -min 0 -max 32 -keyable false  $switch ;
+addAttr   -ln "rightSide" -dv 13 -min 0 -max 32 -keyable false  $switch ;
+addAttr   -ln "centerIK" -dv 20 -min 0 -max 32 -keyable false  $switch ;
+addAttr   -ln "centerFK" -dv 17 -min 0 -max 32 -keyable false  $switch ;
+addAttr   -ln "additional" -dv 20 -min 0 -max 32 -keyable false  $switch ;
+
+
+
+
+an_ctColor ($switch, $switch, 3);
+
+string $CtGen = `curve -n ($listNams[1]+$Sfx[9]) -d 1 -p -4.300001 5.96046e-008 7.447819 -p -1.747445 5.96046e-008 7.447819
+-p -0.969645 0.249458 7.089834 -p 0.969644 0.249458 7.089834 -p 1.747443 5.96046e-008 7.447819 -p 4.3 5.96046e-008 7.447819
+-p 5.576278 5.96046e-008 5.237241 -p 5.655154 0.249458 4.384655 -p 6.624798 0.249458 2.705181 -p 7.323722 5.96046e-008 2.210579
+-p 8.6 5.96046e-008 7.15256e-007 -p 7.323723 5.96046e-008 -2.210578 -p 6.624799 0.249458 -2.70518 -p 5.655155 0.249458 -4.384653
+-p 5.576279 5.96046e-008 -5.237239 -p 4.300001 5.96046e-008 -7.447819 -p 1.747445 5.96046e-008 -7.447819 -p 0.969645 0.249458
+-7.089834 -p -0.969644 0.249458 -7.089834 -p -1.747443 5.96046e-008 -7.447819 -p -4.3 5.96046e-008 -7.447819 -p -5.576278 5.96046e-008 -5.237241
+-p -5.655154 0.249458 -4.384655 -p -6.624798 0.249458 -2.705181 -p -7.323722 5.96046e-008 -2.210579 -p -8.6 5.96046e-008 -7.15256e-007
+-p -7.323723 5.96046e-008 2.210578 -p -6.624799 0.249458 2.70518 -p -5.655155 0.249458 4.384653 -p -5.576279 5.96046e-008 5.237239
+-p -4.300001 5.96046e-008 7.447819 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16
+-k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 -k 25 -k 26 -k 27 -k 28 -k 29 -k 30 `  ;
+
+
+an_ctColor ($CtGen, $switch, 3);
+
+string  $ns =  `textFieldGrp -q -text  TFG_NS`;         // добовляем атрибут немспейс.
+
+
+addAttr   -ln "charNs" -dt "string"    $CtGen ;
+setAttr -type "string"  ($CtGen+".charNs" )  $ns ;
+//addAttr   -ln ($ns+"_NS") -dt "string"  -keyable false  $CtGen ;
+ setAttr -lock true ($CtGen+".charNs" );
+
+string $CtAdd = `curve -n ($listNams[2]+$Sfx[9]) -d 1 -p 0.608319 0.249458 4.4479 -p 1.079982 0.00833275 4.664985
+-p 2.689255 0 4.672487 -p 3.498351 0 3.285652 -p 3.546173 0.241082 2.76873 -p 4.156154 0.249458 1.697131
+-p 4.594633 0 1.386836 -p 5.395322 0 0 -p 4.594633 0 -1.386835 -p 4.156154 0.249458 -1.69713 -p 3.547835 0.249458 -2.750769
+-p 3.498351 0 -3.28565 -p 2.697662 0 -4.672487 -p 1.096282 0 -4.672487 -p 0.608319 0.249458 -4.4479 -p -0.608319 0.249458 -4.4479
+-p -1.096281 0 -4.672487 -p -2.697661 0 -4.672487 -p -3.498351 0 -3.285652 -p -3.547835 0.249458 -2.750771 -p -4.156154 0.249458 -1.697131
+-p -4.594633 0 -1.386836 -p -5.395322 0 0 -p -4.594633 0 1.386835 -p -4.156154 0.249458 1.69713 -p -3.547835 0.249458 2.750769
+-p -3.498351 0 3.28565 -p -2.697662 0 4.672487 -p -1.096282 0 4.672487 -p -0.608319 0.249458 4.4479 -p 0.608319 0.249458 4.4479
+-k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22
+-k 23 -k 24 -k 25 -k 26 -k 27 -k 28 -k 29 -k 30`  ;
+
+
+an_ctColor ($CtAdd, $switch, 3);
+
+                                                                 //создаем и парентим шейп крестик для главного контроллера.
+string $Centre = ` curve -d 1 -p -1 0 0 -p 1 0 0 -p 0 0 0 -p 0 0 -1 -p 0 0 1 -p 0 0 0 -p 0 1 0 -p 0 -1 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 `;
+$ctShape = `listRelatives -shapes $Centre`;
+an_ctColor ($Centre, $switch, 3);
+an_hideAttr  ($Centre, { "tx","ty","tz","rx","ry","rz","sx","sy","sz","v"});
+
+parent -relative -shape $ctShape[0] $CtGen;
+delete $Centre;
+
+scaleConstraint  $CtAdd $switch;  							// констрейним скейл и лочем атрибуты
+an_hideAttr  ($switch, { "rx","ry","rz",  "sx", "sy", "sz", "v"});
+
+
+parent $CtAdd $CtGen;
+
+}
+
+
+//
+

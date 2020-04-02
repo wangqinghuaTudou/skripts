@@ -1,0 +1,52 @@
+// @2012 Andrey Belyaev
+// www.3drigging.com
+
+/*! ## Версия 01. Открывает скрытые обьекты .
+
+> 1.  Открывает скрытые обьекты даже если залочены.
+
+*/
+
+/*! ## Что нового:
+
+> 1. -
+*/
+
+/*! ## Что не так:
+
+> 1. -
+*/
+
+
+
+ global proc an_unhideAll()
+{
+string $sel[] = `ls - sl`;
+for ($each in $sel)
+	{
+	an_doUnhideAll ($each);
+	}
+}
+
+
+global proc an_doUnhideAll(string $obj)
+{
+
+int $connect = `connectionInfo -isDestination ($obj + ".v")`;
+
+if (`attributeExists "visibility" $obj` && $connect==0 )    // проверяем есть ли такой аттрибут и не приконекчен ли он
+  		{
+
+		setAttr -lock 0 ($obj+".visibility");
+		setAttr -keyable 1 ($obj+".visibility");
+		setAttr ($obj+".visibility") 1;
+		}
+
+setAttr ($obj+".overrideLevelOfDetail") 0;
+setAttr ($obj+".overrideDisplayType") 0;
+setAttr ($obj+".overrideEnabled" ) 0;
+}
+
+
+
+

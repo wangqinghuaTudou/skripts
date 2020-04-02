@@ -1,0 +1,18 @@
+global proc RenderStats()
+{
+string $ddd[]=`ls -type "mesh"`;
+for($d in $ddd)
+{
+setAttr ($d+".castsShadows") 1;
+setAttr ($d+".receiveShadows") 1;
+setAttr ($d+".motionBlur") 1;
+setAttr ($d+".primaryVisibility") 1;
+setAttr ($d+".smoothShading") 1;
+setAttr ($d+".visibleInReflections") 1;
+setAttr ($d+".visibleInRefractions") 1;
+setAttr ($d+".doubleSided") 0;
+setAttr ($d+".opposite") 0;
+setAttr ($d+".displayNormal") 0;
+}
+
+}

@@ -1,0 +1,316 @@
+
+
+
+
+/*! ## Делает две твист цепочки между костями.Скрипт работает в трех режимах:  Версия 05.(23.01.13)
+> 1. Создание твист косточек для всей руки.
+> 2. Создание конкретного цепочки между двумя косточками.
+> 3. Создание одной косточи ориентированой на родителя и ап вектор на кость к которой поинтится.
+*/
+
+/*! ## Что нового:
+> 1. - Режим создания корректиркующей косточки, если не нужен сложный твист(23.01.13)
+> 2. - Подцепил автохелп (23.01.13)
+> 3. - Создал систему удаления
+> 4. - вставил систему записывающей для каждого контроллера атрибут лимб
+
+
+
+*/
+/*! ##
+>_________________________________________________________________________________
+>©2012 Andrey Belyaev        www.3drigging.com
+*/
+
+
+
+
+
+
+			   global proc s08_an_limbTwist_v5()
+	{
+	$win = "an_Twist_win";
+
+	if (`window -exists $win`) deleteUI $win;
+	window -t "Limb twist tools v5.00" -w 460 -h 230 $win;
+
+	string $column = `columnLayout `;
+				textFieldButtonGrp -l "Switch controller:"  -text "switch_CT" -bl "Assign"
+				-bc	"string $sel[] = `ls -sl`; textFieldButtonGrp -e -tx $sel[0] TFBG_scaleObj;" TFBG_scaleObj;
+		separator -st "none" -h 6;
+		setParent ..;
+
+	string $form = `formLayout`;
+		string $tabs = `tabLayout -innerMarginWidth 5 -innerMarginHeight 5`;
+		formLayout -edit
+			-attachForm $tabs "top"     0 -attachForm $tabs "left"   0
+			-attachForm $tabs "bottom" 0  -attachForm $tabs "right"  0 $form;
+
+			 string $child1 = an_tab1 ();
+			 string $child2 = an_tab2 ();
+			 string $child3 = an_tab3 ();
+
+			 tabLayout -edit
+				 -tabLabel $child1 "Complex limb"
+				 -tabLabel $child2 "Segment"
+				 -tabLabel $child3 "Single joint"    $tabs;
+	 showWindow $win;
+
+	}
+
+	global proc string an_tab1 ()
+	{
+	string $Name = `columnLayout -adj true -co "both" 10`;
+	separator -st "none" -h 6;
+	text "The chain of bones must necessarily have a parent, which will be guided bone.\n Select arm joint which you want to do the twist bones";
+
+	separator -st "none" -h 6;
+		 radioButtonGrp -l "Type:" -nrb 2 -la2 "Arm " "Leg " -sl 1 RBG_choise;
+
+	separator -st "none" -h 6;
+		 intSliderGrp -f 1 -min 0 -max 15 -v 3 -l "Up extra joints #:" ISG_Up;
+		 intSliderGrp -f 1 -min 0 -max 15 -v 3 -l "Dw extra joints #:" ISG_Dw;
+
+	separator  -h 10;
+				rowColumnLayout -nc 3   -cw 1 140 -cw 2 140  -cw 3 140  ;
+				 button   -l  "Help" -c "an_help( \"s08_an_limbTwist_v5.mel\");";
+				 button   -l "Delete Rig" -c "string $Obg[] = `ls -sl`; an_delRig ($Obg[0]);";
+				 button   -l "Make twist rig" -c "an_doLimbTwist()";
+				setParent ..;
+	setParent ..;
+	return $Name;
+	}
+
+
+	global proc string an_tab2 ()
+	{
+	string $Name = `columnLayout -adj true -co "both" 10`;
+
+	separator -st "none" -h 6;
+		 text "Select two joints which you want to do the twist bones";
+
+	separator -st "none" -h 6;
+		 radioButtonGrp -l "StartAxis:" -nrb 2 -la2 "Z " "Y " -sl 1 RBG_Saxis;
+		 radioButtonGrp -l "EndAxis:" -nrb 2 -la2 "Z " "Y " -sl 1 RBG_Eaxis;
+	separator -st "none" -h 6;
+		 intSliderGrp -f 1 -min 0 -max 15 -v 3 -l "Extra joints #:" ISG_Jnt;
+	separator  -h 10;
+				rowColumnLayout -nc 3   -cw 1 140 -cw 2 140  -cw 3 140  ;
+						 button   -l  "Help" -c "an_help( \"s08_an_limbTwist_v5.mel\");";
+						 button   -l "Delete segment" -c "string $Obg[] = `ls -sl`; an_delRig ($Obg[0]);";
+						 button   -l "Make twist segment" -c "an_doSegment()";
+				setParent ..;
+	setParent ..;
+	return $Name;
+	}
+
+
+
+		global proc string an_tab3 ()
+	{
+	string $Name = `columnLayout -adj true -co "both" 10`;
+
+	separator -st "none" -h 6;
+		 text "Select point then aim joints";
+
+	separator -st "none" -h 6;
+		 radioButtonGrp -l "UpAxis:" -nrb 2 -la2 "Z " "Y " -sl 1 RBG_UpAxis;
+
+
+	separator  -h 10;
+				rowColumnLayout -nc 2   -cw 1 210 -cw 2 210    ;
+						 button   -l  "Help" -c "an_help( \"s08_an_limbTwist_v5.mel\");";
+						 button   -l "Make joint" -c "an_doJoint()";
+				setParent ..;
+	setParent ..;
+	return $Name;
+	}
+
+
+global proc an_doJoint()
+	{
+	string $aim[] = `ls -sl`;
+	select -cl  ;
+	string $jnt = `joint -n (an_sfxMinus($aim[0])+"End_jnt") -p 0 0 0` ;
+	pointConstraint $aim[0] $jnt;
+
+	if ( (`radioButtonGrp -q-sl  RBG_UpAxis`)== 1 )
+		{
+		aimConstraint -aimVector 1 0 0 -upVector 0 0 1 -worldUpType "objectrotation" -worldUpVector 0 0 1 -worldUpObject $aim[0] $aim[1] $jnt;
+		}
+
+		else
+		{
+		aimConstraint -aimVector 1 0 0 -upVector 0 1 0   -worldUpType "objectrotation" -worldUpVector 0 1 0 -worldUpObject $aim[0] $aim[1] $jnt;
+		}
+
+	setAttr ($jnt+".radius") 3;
+	parent 	$jnt $aim[1];
+	}
+
+
+
+
+
+	 global proc an_doSegment()
+	{
+
+	string $aim[] = `ls -sl`;
+
+	if (size($aim)!=2) error "Select joints which you want to do the twist bones!";
+
+	string $scaleObj = `textFieldButtonGrp -q -text TFBG_scaleObj` ;
+
+	string $axsis[];
+	if ( (`radioButtonGrp -q-sl  RBG_Saxis`)== 1 )   $axsis[0]= "-Z";  else $axsis[0]= "-Y";
+	if ( (`radioButtonGrp -q-sl  RBG_Eaxis`)== 1 )   $axsis[1]= "-Z";  else $axsis[1]= "-Y";
+
+	int $jntNum =   `intSliderGrp -q -v ISG_Jnt` ;
+
+
+	string $pfx = (an_sfxMinus($aim[0])+"Twist");
+
+	string $result[] =  an_twistSegmentScale ($aim, $axsis,$jntNum, $scaleObj, $pfx);
+
+	an_hideAttr ($result[0], {"rx", "ry", "rz", "sx", "sy", "sz", "v"});
+
+	an_ctColor ($result[0], $scaleObj, 5);
+
+	print $result;
+	}
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+	global proc an_doLimbTwist ()
+	{
+	string $aim[] = `ls -sl`;                                           /////////////////////////////////////////// получаем необходимые данные
+				if (size($aim)==0) error "Select arm joint which you want to do the twist bones!";
+				string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+				string $scaleObj = `textFieldButtonGrp -q -text TFBG_scaleObj` ;
+				string $jntRoot[] = `listRelatives -p $aim[0]`; //родитель конечности
+				string $jnt[] =  an_childCapture($aim[0]);   //косточки конечности
+				string $upExt = `intSliderGrp -q  -v ISG_Up`; //количество
+				string $dwExt = `intSliderGrp -q  -v ISG_Dw`;
+				string $upPfx = an_sfxMinus($jnt[0]); //префиксы
+				string $dwPfx = an_sfxMinus($jnt[1]);
+																						  /////////////////////////////////////создаем контроллер
+	string $limb;
+				if ((`radioButtonGrp -q -sl   RBG_choise`)==1) $limb = "arm"; else  $limb = "leg"; //определяем тип конечности
+				string $side =  `substring $aim[0] 1 2`; //определяем сторону
+				float $dist = an_distanceBetween ($jnt[0], $jnt[1]);
+				string $ctrlName[] = `circle -n ($side+$limb+"MidBend"+$Sfx[9])  -ch off -nr 1 0 0 -r ($dist/7)` ;
+				string $conGrp = `group -n ($side+$limb+"Mid"+$Sfx[7]) $ctrlName[0] `;
+				string $oriGrp = `group -n ($side+$limb+"Mid"+$Sfx[6]) $conGrp `;
+
+	string $tmp[] = `parentConstraint $jnt[1]  $oriGrp`; delete $tmp[0];  //распологаем контроллер и констрейним к локтю.
+				pointConstraint $jnt[1]  $conGrp ;
+		       string $constr[] = `orientConstraint $jnt[0]  $jnt[1] $conGrp` ;
+			   setAttr  ($constr[0]+".interpType") 2;
+
+
+
+
+	string $rigGrp; 																		 /////////////////////////////////////создаем промежуточные твист кости
+	string $upGrp[],$dwGrp[] ;
+				if ((`radioButtonGrp -q -sl   RBG_choise`)==1) //если это кости руки
+					   {
+					   $upGrp = an_twistSegmentScale ({$jnt[0], $ctrlName[0]}, {"-Y", "-Z"},$upExt, $scaleObj, $upPfx);
+					   $dwGrp = an_twistSegmentScale ({$ctrlName[0], $jnt[2]}, {"-Z", "-Y"},$dwExt, $scaleObj, $dwPfx );
+					   $rigGrp = `group -n ($side+$limb+"TwistRig"+$Sfx[5])   {$upGrp[1], $dwGrp[1], $oriGrp}` ;
+
+					   if ((`getAttr ($jnt[1]+".tx")`)<0) setAttr ($constr[0]+".offsetY") 180;	//	если рука правая то группу с контроллером разворачиваем.
+
+					   }
+				else                                            //если это кости ноги
+					   {
+
+					   string $TopGrp = `group -empty -n ($upPfx+"StartPoz") `;
+					   string $TopGrpOffs = `group -n ($upPfx+"StartPozOffs"+$Sfx[6]) $TopGrp`;
+
+					   string $tmp[] =` parentConstraint $jnt[0] $TopGrpOffs`; delete $tmp[0];
+					   parentConstraint -mo $jntRoot[0] $TopGrpOffs;
+
+					   $upGrp =an_twistSegmentScale ({$TopGrp, $ctrlName[0]}, {"-Z", "-Z"},$upExt, $scaleObj, $upPfx);
+					   $dwGrp =an_twistSegmentScale ({$ctrlName[0], $jnt[2]}, {"-Z", "-Z"},$dwExt, $scaleObj, $dwPfx);
+
+					   $rigGrp = `group -n ($side+$limb+"TwistRig"+$Sfx[5])  $upGrp[1] $dwGrp[1] $oriGrp $TopGrpOffs `;
+
+
+					   if ((`getAttr ($jnt[1]+".tx")`)<0) setAttr ($constr[0]+".offsetZ") 180;	//	если рука правая то группу с контроллером разворачиваем.
+					   }
+
+ an_delSys ({$upGrp[1],$dwGrp[1]}, $rigGrp);
+
+
+     addAttr -longName follow -dv 0.4  -min 0 -max 10 -keyable true $ctrlName[0];
+
+	string $MtDv=`createNode -n ($side+$limb+"multiplyDivide"+$Sfx[13]) "multiplyDivide"`;
+
+	connectAttr -f ($ctrlName[0]+".follow")  ($MtDv+".input1Z");
+	connectAttr -f ($ctrlName[0]+".tz")  ($MtDv+".input2Z");
+	connectAttr -f ($MtDv+".outputZ")   ($upGrp[2]+".tz");
+	connectAttr -f ($MtDv+".outputZ")   ($dwGrp[2]+".tz");
+
+	connectAttr -f ($ctrlName[0]+".follow")  ($MtDv+".input1Y");
+	connectAttr -f ($ctrlName[0]+".ty")  ($MtDv+".input2Y");
+	connectAttr -f ($MtDv+".outputY")   ($upGrp[2]+".ty");
+    connectAttr -f ($MtDv+".outputY")   ($dwGrp[2]+".ty");
+
+
+	connectAttr -f ($scaleObj+".addCtrls")   ($conGrp+".v");
+	connectAttr -f ($scaleObj+".addCtrls")   ($upGrp[2]+".v");
+    connectAttr -f ($scaleObj+".addCtrls")   ($dwGrp[2]+".v");
+
+	an_ctColor ($ctrlName[0], $scaleObj, 5);
+	an_ctColor ($upGrp[0], $scaleObj, 5);
+	an_ctColor ($dwGrp[0], $scaleObj, 5);
+
+	an_hideAttr ($ctrlName[0], {"rx", "ry", "rz", "sx", "sy", "sz", "v"});
+	an_hideAttr ($upGrp[0], {"rx", "ry", "rz", "sx", "sy", "sz", "v"});
+	an_hideAttr ($dwGrp[0], {"rx", "ry", "rz", "sx", "sy", "sz", "v"});
+
+
+
+	/// коннектим визабилити групп рига на общюю группу.
+	addAttr -ln "rigVis" -dv 0 -at "enum" -en "off:on" -keyable 0 $rigGrp;
+	connectAttr  ($rigGrp+".rigVis") ($upGrp[1]+".rigVis");
+    connectAttr  ($rigGrp+".rigVis") ($dwGrp[1]+".rigVis");
+
+	for ($each in {$upGrp[0],$ctrlName[0],$dwGrp[0]})
+			{
+			pvAddLimbAttr ($each, ($side+$limb));
+			}
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

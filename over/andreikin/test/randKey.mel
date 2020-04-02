@@ -1,0 +1,162 @@
+//	randKey.mel v1.1 by Mikael Hakansson.
+//	
+//	This script brings up a window, which lets you randomize
+//	selected keyframes from the graph editor.
+//
+//	It has two modes of randomization. The first mode is the 'offset mode'.
+//	The selected keyframes will be offset from their current position 
+//	(in time and/or value) within the entered value.
+//
+//	The second mode is the 'box mode'. It will randomize your selected
+//	keyframes to any time and position within a specified "box".
+//	For example in the time range 10 to 23, and value range -3 to 8.
+//	Much like PA's randomize, except that you enter the range values 
+//	numerically, instead of	drawing a box in the graph editor.
+//	
+//	In both modes there's the possibility to randomize only in time
+//	or value.
+//
+//	To run the script, just put the script in ~/maya/scripts/
+//	and type 'randKey' from the command line.
+
+
+global proc randKey()
+{
+window -t "Randomize Keyframes";
+	string $tabs = `tabLayout -innerMarginWidth 5 -innerMarginHeight 5`;
+	string $tab1 = `columnLayout`;
+			text "Offset Mode (relative)";
+
+			floatFieldGrp -v1 0 -en 1 -nf 1 -l "Time" timeOffset;
+			floatFieldGrp -v1 0 -en 1 -nf 1 -l "Value" valueOffset;
+
+			rowLayout -numberOfColumns 3
+				-columnWidth3 70 70 70
+				-columnAttach 1 "both"  0
+				-columnAttach 2 "both"  0
+				-columnAttach 3 "both"  0;
+
+			button -w 50 -l "Rand Time" 
+				-c "randKeyOffset(`floatFieldGrp -q -v1 timeOffset`,0,1)";
+			button -w 50 -l "Rand Val" 
+				-c "randKeyOffset(0,`floatFieldGrp -q -v1 valueOffset`,2)";
+			button -w 50 -l "Rand Both" 
+				-c "randKeyOffset(`floatFieldGrp -q -v1 timeOffset`,`floatFieldGrp -q -v1 valueOffset`,0)";
+		setParent ..;
+setParent ..;
+
+	string $tab2 = `columnLayout`;
+		
+		text "Box Mode (absolute)";
+		floatFieldGrp -v1 0 -v2 0 -en 1 -en1 1 -nf 2 -l "Min/Max Time" timeBox;
+		floatFieldGrp -v1 0 -v2 0 -en 1 -en1 1 -nf 2 -l "Min/Max Value" valueBox;
+ 		
+		rowLayout -numberOfColumns 3
+			-columnWidth3 70 70 70
+			-columnAttach 1 "both"  0
+			-columnAttach 2 "both"  0
+			-columnAttach 3 "both"  0;
+		
+		button -l "Rand Time" 
+			-c "randKeyBox(`floatFieldGrp -q -v1 timeBox`,0,`floatFieldGrp -q -v2 timeBox`,0,1)";
+		button -l "Rand Val" 
+			-c "randKeyBox(0,`floatFieldGrp -q -v1 valueBox`,0,`floatFieldGrp -q -v2 valueBox`,2)";
+		button -l "Rand Both" 
+			-c "randKeyBox(`floatFieldGrp -q -v1 timeBox`,`floatFieldGrp -q -v1 valueBox`,`floatFieldGrp -q -v2 timeBox`,`floatFieldGrp -q -v2 valueBox`,0)";
+
+		setParent ..;
+
+                tabLayout -edit
+                        -tabLabel $tab1 "Offset" -tabLabel $tab2 "Box"
+                        $tabs;
+showWindow;
+}
+
+
+global proc randKeyOffset(float $randValT, float $randValV, int $mode)
+{
+string $channel[] = `keyframe -q -n`;
+int $numChannels = size($channel);
+float $newPosT;
+float $newPosV;
+int $keyIndex[];
+
+if ($mode == 0)
+	for ($count=0; $count<$numChannels; $count++)
+	{
+	$keyIndex = `keyframe -sl -q -iv $channel[$count]`;
+	for ($keyCount=0; $keyCount<(size($keyIndex)); $keyCount++)
+		{
+		$newPosT = rand(-$randValT, $randValT);
+		$newPosV = rand(-$randValV, $randValV);
+		keyframe -e -in $keyIndex[$keyCount] -option over -r -tc $newPosT $channel[$count];
+		keyframe -e -in $keyIndex[$keyCount] -r -vc $newPosV $channel[$count];
+		}
+	}
+if ($mode == 1)
+	for ($count=0; $count<$numChannels; $count++)
+	{
+	$keyIndex = `keyframe -sl -q -iv $channel[$count]`;
+	for ($keyCount=0; $keyCount<(size($keyIndex)); $keyCount++)
+		{
+		$newPosT = rand(-$randValT, $randValT);
+		keyframe -e -in $keyIndex[$keyCount] -option over -r -tc $newPosT $channel[$count];
+		}
+	}
+
+if ($mode == 2)
+	for ($count=0; $count<$numChannels; $count++)
+	{
+	$keyIndex = `keyframe -sl -q -iv $channel[$count]`;
+	for ($keyCount=0; $keyCount<(size($keyIndex)); $keyCount++)
+		{
+		$newPosV = rand(-$randValV, $randValV);
+		keyframe -e -in $keyIndex[$keyCount] -r -vc $newPosV $channel[$count];
+		}
+	}
+}
+
+
+global proc randKeyBox(float $minTime, float $minValue, float $maxTime, float $maxValue, int $mode)
+{
+string $channel[] = `keyframe -q -n`;
+int $numChannels = size($channel);
+float $newPosT;
+float $newPosV;
+int $keyIndex[];
+
+if ($mode == 0)
+	for ($count=0; $count<$numChannels; $count++)
+	{
+	$keyIndex = `keyframe -sl -q -iv $channel[$count]`;
+	for ($keyCount=0; $keyCount<(size($keyIndex)); $keyCount++)
+		{
+		$newPosT = rand($minTime, $maxTime);
+		$newPosV = rand($minValue, $maxValue);
+		keyframe -e -in $keyIndex[$keyCount] -option over -a -tc $newPosT $channel[$count];
+		keyframe -e -in $keyIndex[$keyCount] -a -vc $newPosV $channel[$count];
+		}
+	}
+
+if ($mode == 1)
+	for ($count=0; $count<$numChannels; $count++)
+	{
+	$keyIndex = `keyframe -sl -q -iv $channel[$count]`;
+	for ($keyCount=0; $keyCount<(size($keyIndex)); $keyCount++)
+		{
+		$newPosT = rand($minTime, $maxTime);
+		keyframe -e -in $keyIndex[$keyCount] -option over -a -tc $newPosT $channel[$count];
+		}
+	}
+
+if ($mode == 2)
+	for ($count=0; $count<$numChannels; $count++)
+	{
+	$keyIndex = `keyframe -sl -q -iv $channel[$count]`;
+	for ($keyCount=0; $keyCount<(size($keyIndex)); $keyCount++)
+		{
+		$newPosV = rand($minValue, $maxValue);
+		keyframe -e -in $keyIndex[$keyCount] -a -vc $newPosV $channel[$count];
+		}
+	}
+} 

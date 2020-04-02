@@ -1,0 +1,58 @@
+global proc an_objSequenceImporter()
+{
+if ( `window -exists objSequenceImporter` )
+  deleteUI -window objSequenceImporter;
+string $objSequenceImporter = `window -tlb true objSequenceImporter`;
+	columnLayout;
+		rowColumnLayout -numberOfColumns 1
+
+			-columnWidth 1 240;
+		button -w 240 -h 30 -l "Import Sequence" -ann "."-c "an_objSequenceImporterCom;";
+	setParent ..;
+
+separator -style "none" -w 240 -h 12;
+showWindow $objSequenceImporter;
+}
+
+
+
+
+global proc an_objSequenceImporterCom()
+{
+string $fileName = `fileDialog`;  //Получаем путь плюс имя файла
+
+string $tokenArray[];
+int $size = `tokenize $fileName "/" $tokenArray `;
+string $pathTail = $tokenArray[$size - 1];
+	tokenize($pathTail, ".", $tokenArray);
+	string $file = $tokenArray[0];                                                     // имя файла
+	string $Path = `substring $fileName  1 ((size ($fileName))-(size ($pathTail)))`;   // путь в дерриторию с файлом
+string $Content[] = `getFileList -folder $Path`;
+
+
+file -import -type "OBJ" -rpr $file -options "mo=1"  -pr -loadReferenceDepth "all"  ($Path+$file+".OBJ");
+select -allDagObjects;
+string $select[] = ` ls -sl`;
+string $baseName = $select[0] ;
+
+int $i;
+string $bspName[];
+for ($i =0; $i<size($Content); $i++)
+		{
+
+		string $stringArray[];
+		tokenize ($Content[$i], ".", $stringArray);
+		file -import -type "OBJ" -rpr $stringArray[0] -options "mo=1"  -pr -loadReferenceDepth "all"  ($Path+$stringArray[0]+".OBJ");
+		$bspName[$i] = $stringArray[0]+"_"+$baseName ;
+		}
+
+print $bspName ;
+select $bspName ;
+select -add $baseName ;
+
+blendShape -ib  ;
+delete $bspName;
+}
+
+
+

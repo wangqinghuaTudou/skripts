@@ -1,0 +1,27 @@
+ /*
+    Script:     an_setRotOrder.mel
+    Version:    1.00
+    Author:     Andrey Belyaev
+    Website:    www.3drigging.com
+
+    WhatТs New:
+    Descr:      —крипт устанавливает ротейшн ордер дл€ указанных в списке
+	контроллеров.
+	Req:    an_setJntRotOrder, an_Names, an_massivPlus
+*/
+
+global proc s09_an_setRotOrder()
+{
+string $selection[] = `ls "*_CT"`;
+for ($each in $selection) an_setJntRotOrder($each);
+
+string $selection[] = `ls "*_jnt"`;
+for ($each in $selection) an_setJntRotOrder($each);
+
+string $selection[] = `ls "*_bind"`;
+for ($each in $selection) an_setJntRotOrder($each);
+
+string $selection[] = `ls "*_match"`;
+for ($each in $selection) an_setJntRotOrder($each);
+
+}

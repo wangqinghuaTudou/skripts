@@ -1,0 +1,168 @@
+
+
+
+/*! ## Скрипт создает риг для головы персонажа.  Версия 04 (27.12.12)
+> 1. Для автоматического заполнения нажмите Additionally / Load preset
+> 2. Для удаления рига нажмите "Delete  rig".
+*/
+
+/*! ## Что нового:
+> 1.Система удаления рига
+> 2.Цвет контроллера определяется атрибутом на группе с ригом
+> 3.Вставил хелп
+
+
+
+*/
+/*! ##
+>_________________________________________________________________________________
+>©2012 Andrey Belyaev        www.3drigging.com
+*/
+
+
+
+
+
+global proc s04_an_headRig_v4()
+{
+	if (`window -ex headRigging `) deleteUI headRigging ;
+	window -t "Head Rig 4.00" -s true -rtf true -menuBar true headRigging ;
+		menu -label "Additionally" -tearOff true;
+    		menuItem -label "Load head preset" -command "loadHeadPreset()";
+		columnLayout -adj 1;
+		separator -st "none" -h 4;////////////////////////////////
+
+			textFieldButtonGrp -label "Head joint:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_head;" TFBG_head;
+		separator -h 10;////////////////////////////////
+			textFieldButtonGrp -label "Neck jnt:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_Neck;" TFBG_Neck;
+
+			textFieldButtonGrp -label "Torso jnt:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_Torso;" TFBG_Torso;
+
+			textFieldButtonGrp -label "Body controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_Body;" TFBG_Body;
+
+			textFieldButtonGrp -label "Switch controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_Switch;" TFBG_Switch;
+
+	        textFieldButtonGrp -l "Parent_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_headParentCtrl;" TFBG_headParentCtrl;
+                             separator -st "none" -h 10;////////////////////////////////
+
+									rowColumnLayout -nc 3   -cw 1 153 -cw 2 153 -cw 3 153 ;
+										 button   -l  "Help" -c "an_help( \"s04_an_headRig_v4.mel\");";
+										 button   -l "Delete head rig" -c "an_deleteHeadRig()";
+										 button -l "Make head rig" -c "an_MakeHeadRig ()";
+
+             showWindow headRigging ;
+}
+
+
+
+global proc an_MakeHeadRig()
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $ctNams[] = `an_NamesList_v02 -ctrl`;
+
+string $headJnt = `textFieldButtonGrp -q -tx TFBG_head`;
+string $Neck = `textFieldButtonGrp -q -tx TFBG_Neck`;
+string $Torso = `textFieldButtonGrp -q -tx TFBG_Torso`;
+string $Body = `textFieldButtonGrp -q -tx TFBG_Body`;
+string $Switch = `textFieldButtonGrp -q -tx TFBG_Switch`;
+string $Parent_CT = `textFieldButtonGrp -q -tx TFBG_headParentCtrl`;
+
+string $CtNams[] = { ($ctNams[9]+$Sfx[9]) , ($ctNams[9]+"Aim"+$Sfx[9]) }; //имена контроллеров
+
+
+string  $RigGroup = `group -em -n (an_pfxMinus($CtNams[0])+"Rig"+$Sfx[5]) `;
+	addAttr -ln "ctColor"  -at long  -min 1 -max 31 -dv 17  -keyable true $RigGroup;
+	addAttr -ln "aimCtColor"  -at long  -min 1 -max 31 -dv 20  -keyable true $RigGroup;
+
+																												///// создаем контроллер головы
+string $headCtrl[] = an_makeCtrl($CtNams[0], "-head", $headJnt,  $RigGroup,  ($RigGroup+".ctColor"),  {"sx", "sy", "sz", "v"},  {"sx", "sy", "sz", "v"} );
+
+string $headEnd [] = `listRelatives -children $headJnt`;
+string $temp[] = `aimConstraint  -aim  0 1 0 -u 1 0 0 -worldUpType "vector" -worldUpVector 1 0 0 $headEnd[0] $headCtrl[0]`; delete $temp[0];
+
+setDrivenKeyframe  -currentDriver ($Switch+".bodyCtrls") -driverValue 2 -value 1 ($headCtrl[0]+".v"); // настраиваем визибилити.
+setDrivenKeyframe  -currentDriver ($Switch+".bodyCtrls") -driverValue 3 -value 0 ($headCtrl[0]+".v");
+
+           																					         	 ///// создаем контроллер аим.
+string $headAimCtrl[] = an_makeCtrl($CtNams[1], "-headAim", "",  $RigGroup,  ($RigGroup+".aimCtColor"),  {"sx", "sy", "sz", "v"},  {"rx", "ry", "rz", "sx", "sy", "sz", "v"} );
+
+addAttr   -ln "aim_visibility" -dv 0 -min 0 -max 1 -keyable true $headCtrl[2] ;
+connectAttr ($headCtrl[2]+".aim_visibility")   ($headAimCtrl[0]+".v");
+
+				string $tmp = `group -em`;                            ///вычисляем положение аим контроллера
+				parent $tmp $headJnt;
+				setAttr  ($tmp+".t") 0 0 0 ; setAttr  ($tmp+".r") 0 0 0 ;
+				float  $val = `getAttr ($headJnt+".tx")`;
+				setAttr  ($tmp+".ty") ($val*5) ; //*********************************
+string $temp[] = `pointConstraint $tmp $headAimCtrl[0]`; delete $temp[0] $tmp; //позиционируем контроллер
+
+string $targetAim = `group -em -n ( an_pfxMinus($CtNams[1])+$Sfx[5])`;               // создаем трансформу которая будет следить за ик
+string $targetAimGrp = `group  -n (  an_pfxMinus($CtNams[1])+"Offset"+$Sfx[5])`;
+
+string $temp[] = `pointConstraint $headJnt $targetAimGrp`; delete $temp[0];
+parentConstraint -maintainOffset $Neck $targetAimGrp;
+
+aimConstraint    -upVector 0 1 0 -worldUpType "objectrotation" -worldUpVector 0 1 0 -worldUpObject $headAimCtrl[2] $headAimCtrl[2]  $targetAim ;
+
+
+//ориент спэйс
+string $objects[]={ $Parent_CT,   $Body, $Torso, $Neck,  $targetAim  };
+string $attr[]= { "general",  "body",  "torso", "neck",  "aim"};
+an_spaceMaker_v3_0  (1,$objects, $attr, $headCtrl[0], $headCtrl[2],1 );
+
+//трансформ спэйс
+string $objects[]={ $Parent_CT,   $Body, $Torso, $Neck };
+string $attr[]= { "general",  "body",  "torso", "neck" };
+an_spaceMaker_v3_0  (2,$objects, $attr, $headCtrl[0], $headCtrl[2],1 );
+
+parent  $targetAimGrp $RigGroup;
+
+an_delSys ({$headCtrl[0]}, $RigGroup);
+
+parentConstraint -mo $CtNams[0] $headJnt;
+parent $RigGroup $Parent_CT;
+
+setAttr ($headCtrl[2]+".rot_space") 3;
+setAttr ($headCtrl[2]+".tr_space") 3;
+select -cl  ;
+}
+
+
+
+global proc an_deleteHeadRig ()
+{
+string $ctNams[] = `an_NamesList_v02 -ctrl`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $CtNams[] = { ($ctNams[9]+$Sfx[9]) , ($ctNams[9]+"Aim"+$Sfx[9]) }; //имена контроллеров
+an_delRig ((an_pfxMinus($CtNams[0])+"Rig"+$Sfx[5]));
+}
+
+
+
+global proc loadHeadPreset ()
+{
+string $jntNams[] = `an_NamesList_v02 -bones`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $ctNams[] = `an_NamesList_v02 -ctrl`;
+
+textFieldButtonGrp -e -tx ($jntNams[3]+$Sfx[4]) TFBG_head;
+textFieldButtonGrp -e -tx ($jntNams[2]+$Sfx[4]) TFBG_Neck;
+textFieldButtonGrp -e -tx ($jntNams[1]+"02"+$Sfx[4]) TFBG_Torso;
+textFieldButtonGrp -e -tx ($ctNams[3]+$Sfx[9]) TFBG_Body;
+textFieldButtonGrp -e -tx ($ctNams[0]+$Sfx[9]) TFBG_Switch;
+textFieldButtonGrp -e -tx ($ctNams[2]+$Sfx[9]) TFBG_headParentCtrl;
+}
+
+
+
+
+
+
+
+

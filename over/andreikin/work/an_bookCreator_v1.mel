@@ -1,0 +1,289 @@
+ 			   global proc an_bookCreator_v1()
+	{
+	$win = "an_bookCreator";
+			if (`window -exists $win`) deleteUI $win;
+			window -t "book rigging tools v1.00" -w 460 -h 230 $win;
+
+	string $form = `formLayout`;
+		string $tabs = `tabLayout -innerMarginWidth 5 -innerMarginHeight 5`;
+		formLayout -edit
+			-attachForm $tabs "top"     0 -attachForm $tabs "left"   0
+			-attachForm $tabs "bottom" 0  -attachForm $tabs "right"  0 $form;
+
+	string $child1 = an_bookTab1 ();
+    string $child2 = an_bookTab2 ();
+	string $child3 = an_bookTab3 ();
+
+			 tabLayout -edit
+				 -tabLabel $child1 "Step 1"
+				 -tabLabel $child2 "Step 2"
+				 -tabLabel $child3 "Step 3"      $tabs;
+	 showWindow $win;
+
+	}
+
+	global proc string an_bookTab1 ()
+	{
+		string $Name = `columnLayout -adj true -co "both" 10`;
+		separator -st "none" -h 6;
+		text -align "left" "1. Mesh of the book must be symmetrical plane YZ.\n2. Create locators.\n3. Place them in accordance with the size of the book.\n";
+		separator  -h 10;
+		rowColumnLayout -nc 1   -cw 1 420     ;
+		button   -l "Create locators" -c "an_createLocators()";
+		setParent ..;
+	setParent ..;
+	return $Name;
+	}
+
+global proc string an_bookTab2 ()
+	{
+	string $Name = `columnLayout -adj true -co "both" 10`;
+	separator -st "none" -h 6;
+
+	text -align "left" "1. Print the name of the main controller, or leave  which is given by default .\n2. Create main controller and cover joints";
+	separator  -st "none" -h 10;
+	textFieldGrp -label "Controller name:       "  -text  "book_CT"    TFG_Controller;
+
+    separator   -h 10;
+		rowColumnLayout -nc 1   -cw 1 420     ;
+		button   -l "Create controller" -c "an_createController()";
+		setParent ..;
+
+	setParent ..;
+	return $Name;
+	}
+
+global proc string an_bookTab3 ()
+{
+string $Name = `columnLayout -adj true -co "both" 10`;
+separator -st "none" -h 6;
+
+text -align "left" "1. Specify the required number of pages. ";
+
+separator -st "none" -h 6;
+
+intSliderGrp -f 1 -min 1 -max 50 -v 10 -l "Number of pages :" ISG_pages;
+
+separator   -h 10;
+		rowColumnLayout -nc 1   -cw 1 420     ;
+		button   -l "Create Pages" -c "an_createPages()";
+		setParent ..;
+
+	setParent ..;
+	return $Name;
+}
+
+global proc an_createPages ()
+{
+global string $an_rightct  ;
+global string $an_leftct  ;
+global string $an_bendPlace  ;
+global string $jnt[] ;
+
+int $pageNumber = `intSliderGrp -q -v ISG_pages` ;
+float $pos[] =` xform -q   -rotatePivot -ws $an_bendPlace`;
+float $posR[] =` xform -q   -rotatePivot -ws $an_rightct`;
+float $posL[] =` xform -q   -rotatePivot -ws $an_leftct`;
+
+int $id;
+string $rootCurve[];
+for ($id =0 ; $id<$pageNumber; $id++ )
+		{
+		$rootCurve[$id] = `curve -n  ("rootCurv_"+$id) -d 1 -p 0 0 $posL[2]  -p 0  0 $posR[2]  -k 0 -k 1 `;
+		move -r  (($pos[0]*2)*$id/$pageNumber) 0 0 ;
+		}
+string $rootCurveGrp =  `group -n "rootCurves" $rootCurve`;
+float $tmp[] =` xform -q   -rotatePivot -ws $rootCurveGrp`;
+setAttr ($rootCurveGrp+".translateX") ($tmp[0]*-1);
+
+
+
+
+
+//xform -os -piv 0 0 0;
+}
+
+
+
+
+
+
+
+		global proc an_createLocators ()
+{
+global string $an_rightct  ;
+global string $an_leftct  ;
+global string $an_bendPlace  ;
+
+
+$an_rightct = `curve -n "right_corner" -d 1 -p 4 0 -3 -p 5 0 -3 -p 5 0 -2 -k 0 -k 1 -k 2` ;
+		xform -os -piv 5 0 -3;
+		setAttr ($an_rightct +".overrideEnabled") 1;
+		setAttr ($an_rightct +".overrideColor")  13;
+		for ($attr in {".ty", ".rx", ".ry", ".rz", ".sx", ".sy", ".sz" , ".v"})   setAttr -lock true -keyable false -channelBox false ($an_rightct+$attr);
+
+$an_leftct = `curve -n "left_corner" -d 1 -p -5 0 2 -p -5 0 3 -p -4 0 3 -k 0 -k 1 -k 2` ;
+		xform -os -piv -5 0 3;
+		setAttr ($an_leftct +".overrideEnabled") 1;
+		setAttr ($an_leftct +".overrideColor")  13;
+
+	string $multiplyDivide =`createNode   "multiplyDivide"`;
+		setAttr ($multiplyDivide+".input1X") -1;
+		connectAttr -f ($an_rightct+".tx")  ($multiplyDivide+".input2X");
+		connectAttr -f  ($multiplyDivide+".outputX") ($an_leftct+".tx");
+
+	for ($attr in {".tx", ".ty", ".rx", ".ry", ".rz", ".sx", ".sy", ".sz" , ".v"})   setAttr -lock true -keyable false -channelBox false ($an_leftct+$attr);
+
+$an_bendPlace = `curve -n "bendPlace" -d 1 -p 0.5 0 -4 -p 1.5 0 -4 -p 1 0 -3 -p 0.5 0 -4 -k 0 -k 1 -k 2 -k 3 `;
+		xform -os -piv 1 0 -4;
+		setAttr ($an_bendPlace +".overrideEnabled") 1;
+		setAttr ($an_bendPlace +".overrideColor")  13;
+		connectAttr -f  ($an_rightct+".tz") ($an_bendPlace+".tz");
+		for ($attr in {".tz", ".ty", ".rx", ".ry", ".rz", ".sx", ".sy", ".sz" , ".v"})   setAttr -lock true -keyable false -channelBox false ($an_bendPlace+$attr);
+}
+
+
+
+
+
+global proc an_createController ()
+{
+string $name = `textFieldGrp  -q   -text    TFG_Controller`;
+
+string $ct = `curve -n $name   -d 3 -p 0 0 -4 -p 4 0 -4 -p 5 0 -4 -p 6 0 -4 -p 6 0 -3 -p 6 0 -2 -p 6 0 2 -p 6 0 3 -p 6 0 4 -p 5 0 4 -p 4 0 4
+			-p -4 0 4 -p -5 0 4 -p -6 0 4 -p -6 0 3 -p -6 0 2 -p -6 0 -2 -p -6 0 -3 -p -6 0 -4 -p -5 0 -4 -p -4 0 -4 -p 0 0 -4 -k 0 -k 0 -k 0 -k 1
+			-k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 19 -k 19 `;
+
+string $clacterR[] = `cluster ($name+".cv[1:10]")`;
+pointConstraint -offset 0 0 0 -skip y -skip z -weight 1 "right_corner" $clacterR[1] ;
+
+string $clacterB[] = `cluster ($name+".cv[6:15]")` ;
+pointConstraint -offset 0 0 0 -skip y -skip x -weight 1 "left_corner" $clacterB[1] ;
+
+string $clacterL[] = `cluster ($name+".cv[11:20]")` ;
+pointConstraint -offset 0 0 0 -skip y -skip z -weight 1 "left_corner" $clacterL[1] ;
+
+string $clacterT[] = `cluster ($name+".cv[0:5]")` ;
+pointConstraint -offset 0 0 0 -skip y -skip x -weight 1 "right_corner" $clacterT[1] ;
+
+string $clacterT2[] = `cluster ($name+".cv[16:21]")`;
+pointConstraint -offset 0 0 0 -skip y -skip x -weight 1 "right_corner" $clacterT2[1] ;
+delete -constructionHistory $ct;
+
+delete $clacterR[1] $clacterB[1] $clacterL[1] $clacterT[1] $clacterT2[1]  ;
+
+string $ctShape[] = `listRelatives -s $ct`;
+
+setAttr ($ctShape[0] +".overrideEnabled") 1;
+setAttr ($ctShape[0] +".overrideColor")  17;
+setAttr -lock true -keyable false -channelBox false ($ct+".v");
+
+an_coverRig;
+}
+
+global proc   an_coverRig ()
+{
+global string $an_rightct  ;
+global string $an_leftct  ;
+global string $an_bendPlace  ;
+global string $jnt[] ;
+
+string $ctName = `textFieldGrp  -q   -text    TFG_Controller`;    //заприос имен
+float $pos[] =` xform -q   -rotatePivot -ws $an_bendPlace`;
+float $posR[] =` xform -q   -rotatePivot -ws $an_rightct`;
+float $posL[] =` xform -q   -rotatePivot -ws $an_leftct`;
+
+addAttr   -ln "additional"    -keyable true  $ctName ;     //добовляем атрибуты
+		setAttr -lock true ($ctName+".additional");
+addAttr   -ln "side" -dv 0.5 -min 0 -max 1  -keyable true  $ctName ;
+addAttr   -ln "open" -dv 1 -min 0 -max 1  -keyable true  $ctName ;
+
+addAttr   -ln "r_openOffset" -dv 0    -keyable true  $ctName ;
+addAttr   -ln "l_openOffset" -dv 0    -keyable true  $ctName ;
+
+
+select -cl  ;                                               //создаем кости корочки
+string $reversJnt[];
+		$reversJnt[0] = `joint -n "rootRevJnt_01"  -p $pos[0] 0 0 `;
+		$reversJnt[1] = `joint -n "rootRevJnt_02"  -p ($pos[0]*-1) 0 0` ;
+		$reversJnt[2] = `joint -n "rootRevJnt_03"  -p  $pos[0] 0 0` ;
+		parent $reversJnt[0] $ctName;
+
+string $blendOpen = `createNode -name  "blendOpen#"   "blendTwoAttr"`;    //создаем бленду отключающую сайд при открытии киги.
+		connectAttr -f ($ctName+".open") ($blendOpen+".attributesBlender") ;
+		setAttr   ($blendOpen + ".input[1]") 0.5 ;
+		connectAttr -f ($ctName+".side") ($blendOpen + ".input[0]");
+
+setDrivenKeyframe -itt linear -ott linear -cd ($blendOpen+".output") -dv 0 -v 90  ($reversJnt[1]+".rz" );
+setDrivenKeyframe -itt linear -ott linear -cd ($blendOpen+".output") -dv .5 -v 0  ($reversJnt[1]+".rz" );
+setDrivenKeyframe -itt linear -ott linear -cd ($blendOpen+".output") -dv .5 -v 0  ($reversJnt[0]+".rz" );
+setDrivenKeyframe -itt linear -ott linear -cd ($blendOpen+".output") -dv 1 -v -90  ($reversJnt[0]+".rz" );
+
+
+														////////////////////////////////////////////////////создаем левую корочку
+
+select -cl  ;
+string $lOpenJnt[];                          //косточка вычисляющая значение открытой корочки.
+		$lOpenJnt[0] = `joint -n "l_OpenJnt_01"  -p ($pos[0]*-1) 0 0 `;
+		$lOpenJnt[1] = `joint -n "l_OpenJnt_02"  -p  $posL[0] 0 0   ` ;
+		parent  $lOpenJnt[0] $reversJnt[1]  ;
+		string $orConstr[] =` orientConstraint $ctName $lOpenJnt[0]`;
+
+		connectAttr -f	($ctName+".r_openOffset") ($orConstr[0]+".offsetZ") ;
+		setAttr  ($lOpenJnt[0]+".visibility") 0;
+
+select -cl  ;
+string $lJnt[];                          // кость левой корочки
+		$lJnt[0] = `joint -n "l_Jnt_01"  -p ($pos[0]*-1) 0 0 `;
+		$lJnt[1] = `joint -n "l_Jnt_02"  -p  $posL[0] 0 0   ` ;
+		parent  $lJnt[0] $reversJnt[1]  ;
+
+string $blendLeft = `createNode -name  "blendLeft#"   "blendTwoAttr"`;    //создаем бленд ноду открывающую левую корку
+		connectAttr -f ($ctName+".open") ($blendLeft+".attributesBlender") ;
+		connectAttr -f ($lOpenJnt[0]+".rz") ($blendLeft + ".input[1]");
+ 		connectAttr -f ($blendLeft+".output")($lJnt[0]+".rz" );
+
+string $blendLeftClose = `createNode -name  "blendLeftClose#"   "blendTwoAttr"`;    //создаем бленд ноду не позволяющую открываться корочке если книга на ней лежит.
+		//
+		setDrivenKeyframe -itt linear -ott linear   -cd ($ctName+".side") -dv 0.5 -v 0  ($blendLeftClose+".attributesBlender");
+        setDrivenKeyframe -itt linear -ott linear   -cd ($ctName+".side") -dv   0 -v 1  ($blendLeftClose+".attributesBlender");
+		setAttr   ($blendLeftClose + ".input[0]") -90 ;
+		connectAttr -f ($lOpenJnt[0]+".rz") ($blendLeftClose + ".input[1]");
+ 		connectAttr -f ($blendLeftClose+".output")($blendLeft + ".input[0]");
+
+
+															////////////////////////////////////////////////////создаем левую корочку
+
+select -cl  ;
+string $rOpenJnt[];                          //косточка вычисляющая значение открытой корочки.
+		$rOpenJnt[0] = `joint -n "r_OpenJnt_01"  -p  $pos[0] 0 0 `;
+		$rOpenJnt[1] = `joint -n "r_OpenJnt_02"  -p  $posR[0] 0 0   ` ;
+		parent  $rOpenJnt[0] $reversJnt[2]  ;
+		string $orConstr[] =`orientConstraint $ctName $rOpenJnt[0]`;
+
+		connectAttr -f	($ctName+".l_openOffset") ($orConstr[0]+".offsetZ") ;
+		setAttr  ($rOpenJnt[0]+".visibility") 0;
+
+select -cl  ;
+string $r_Jnt[];                          // кость левой корочки
+		$r_Jnt[0] = `joint -n "r_Jnt_01"  -p  $pos[0]  0 0 `;
+		$r_Jnt[1] = `joint -n "r_Jnt_02"  -p  $posR[0] 0 0   ` ;
+		parent  $r_Jnt[0] $reversJnt[2]  ;
+
+string $blendRight  = `createNode -name  "blendRight#"   "blendTwoAttr"`;    //создаем бленд ноду открывающую левую корку
+		connectAttr -f ($ctName+".open") ($blendRight +".attributesBlender") ;
+		connectAttr -f ($rOpenJnt[0]+".rz") ($blendRight  + ".input[1]");
+ 		connectAttr -f ($blendRight +".output")($r_Jnt[0]+".rz" );
+
+string $blendRightClose = `createNode -name  "blendRightClose#"   "blendTwoAttr"`;    //создаем бленд ноду не позволяющую открываться корочке если книга на ней лежит.
+		//
+		setDrivenKeyframe -itt linear -ott linear   -cd ($ctName+".side") -dv 0.5 -v 0  ($blendRightClose+".attributesBlender");
+        setDrivenKeyframe -itt linear -ott linear   -cd ($ctName+".side") -dv   1 -v 1  ($blendRightClose+".attributesBlender");
+		setAttr   ($blendRightClose + ".input[0]") 90 ;
+		connectAttr -f ($rOpenJnt[0]+".rz") ($blendRightClose + ".input[1]");
+ 		connectAttr -f ($blendRightClose+".output")($blendRight  + ".input[0]");
+
+ string $temp[] = `pointConstraint -skip x -skip y $an_rightct $an_leftct $reversJnt[0]`; delete $temp[0];
+
+ $jnt  = {$reversJnt[0], $reversJnt[1], $lJnt[0], $lJnt[1], $r_Jnt[0], $r_Jnt[1]};
+}

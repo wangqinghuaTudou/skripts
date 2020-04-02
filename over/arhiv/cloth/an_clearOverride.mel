@@ -1,0 +1,42 @@
+/*
+
+// @2012 Andrey Belyaev
+// www.3drigging.com
+
+/*! ##Override выключатель.  Версия 2 (16.03.12)
+> 1. Выключает у выделенного обьекта overrideEnabled
+> 2. Ставит у выделенного обьекта overrideDisplayType в режим нормал
+> 3. Работает только при отсутствии коннекшенов на эти атрибуты.
+*/
+
+/*! ## Что нового:
+> 1.
+*/
+
+/*! ## Надо сделать:
+> 1.-
+*/
+
+
+
+global proc an_clearOverride()
+{
+string $sel[] = `ls -sl` ;
+string $obj ;
+string $objShape[] ;
+for ($obj in $sel)
+	  {
+		$objShape = `listRelatives -s $obj` ;
+		if (`size (listConnections ($obj+".overrideEnabled"))` == 0)
+			{
+				setAttr ($obj+".overrideDisplayType") 0 ;
+				setAttr ($obj+".overrideEnabled") 0 ;
+			}
+		if (`size (listConnections ($objShape[0]+".overrideEnabled"))` == 1)
+			{
+				setAttr ($objShape[0]+".overrideDisplayType") 0 ;
+				setAttr ($objShape[0]+".overrideEnabled") 0 ;
+			}
+
+	  }
+}

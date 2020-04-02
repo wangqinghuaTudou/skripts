@@ -1,0 +1,10 @@
+global proc ak_killReferenceNamespace () {
+// kill reference node
+string $sel[] = `ls -typ "reference"`;
+for($i=0;$i<(size($sel));$i++){lockNode -l 0 $sel[$i]; delete $sel[$i];}
+// kill namespace
+string $ns[] = `namespaceInfo -lon`;
+for($i=0;$i<(size($ns));$i++){
+if(`gmatch $ns[$i] "UI"`==0){if(`gmatch $ns[$i] "shared"`==0)
+   {namespace -mnr -rm $ns[$i];}}                           }
+print "all reference node & namespace == kill !!!";}

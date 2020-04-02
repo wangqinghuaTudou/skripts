@@ -1,0 +1,262 @@
+/*! ## Скрипт создает риг для шеи персонажа.  Версия 02 (25.12.12)
+> 1. Для автоматического заполнения нажмите Additionally / Load preset
+> 2. Для удаления рига нажмите "Delete arm rig".
+*/
+
+/*! ## Что нового:
+> 1.Система твиста.
+> 2.Система удаления рига
+> 3.Цвет контроллера определяется атрибутом на группе с ригом
+
+
+
+
+*/
+/*! ##
+>_________________________________________________________________________________
+>©2012 Andrey Belyaev        www.3drigging.com
+*/
+
+
+
+global proc s07_an_neckRig_v02 ( )
+{
+$win = "an_neck_win";
+if (`window -ex $win `)deleteUI $win ;
+window -t "Neck Rigging 2.00" -s true -rtf true -menuBar true $win ;
+menu -label "Additionally" -tearOff true;
+	menuItem -label "Load preset" -command "an_loadNeckPreset()";
+
+columnLayout -adj 1;
+	frameLayout  -cll 1 -label "Fk System" -borderStyle "etchedIn";
+		columnLayout -adj 1;
+				separator -st "none" -h 5;
+				textFieldButtonGrp -label "Neck:" -bl "Assign"
+					-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_Neck;" TFBG_Neck;      // рутовая кость
+
+				textFieldButtonGrp -l "Switch_controller :" -bl "Assign"
+					-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_SwitchCtrl;" TFBG_SwitchCtrl;
+		setParent ..;
+	setParent ..;
+	frameLayout  -cll 1 -label "Twist System" -borderStyle "etchedIn";
+		columnLayout -adj 1;
+				separator -st "none" -h 6;
+
+				checkBoxGrp -numberOfCheckBoxes 1 -label "Make twist joint" -v1 1 CHBG_neckTw;
+
+				separator -st "none" -h 6;
+				intSliderGrp -f 1 -min 0 -max 15 -v 2 -l "Extra joints #:" ISG_neckTwJnt;
+				separator -st "none" -h 10;
+		setParent ..;
+	setParent ..;
+							rowColumnLayout -nc 3   -cw 1 153 -cw 2 153 -cw 3 153 ;
+								 button   -l  "Help" -c "an_help( \"s07_an_neckRig_v02.mel\");";
+								 button   -l "Delete neck rig" -c "an_deleteNeckRig()";
+								 button   -l "Make neck rig" -c "an_doNeckRig()";
+
+showWindow $win ;
+}
+
+
+
+global proc an_doNeckRig ()
+
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $switch = `textFieldGrp -q -text TFBG_SwitchCtrl`;
+string $jnt =  `textFieldGrp -q -text TFBG_Neck`;
+
+string $name  = an_sfxMinus($jnt);
+string $rigGrp  = `group -em -n ($name+"Rig"+$Sfx[5])`;
+	addAttr -ln "ctColor"  -at long  -min 1 -max 31 -dv 17  -keyable true $rigGrp;
+	addAttr -ln "twCtColor"  -at long  -min 1 -max 31 -dv 20  -keyable true $rigGrp;
+
+string $fkCtrl[] = an_makeCtrl (($name+$Sfx[9]), "-fkNeck", $jnt , $rigGrp, ($rigGrp+".ctColor"), {"sx", "sy", "sz", "v"}, {"sx", "sy", "sz", "v"} ); //контроллер
+
+
+string $head[] = `listRelatives -children $jnt`;
+string $temp[] = `aimConstraint  -aim  0 1 0 -u 1 0 0 -worldUpType "vector" -worldUpVector 1 0 0 $head[0] $fkCtrl[0]`; delete $temp[0];
+
+
+string $parent[] =`listRelatives -p $jnt`;
+parentConstraint -mo $parent[0] $fkCtrl[0]; //если есть родитель то констрейнимся к нему
+parentConstraint -mo   $fkCtrl[2] $jnt ;
+
+string $children[] =`listRelatives -children $jnt`;
+int $jntNum =   `intSliderGrp -q -v ISG_neckTwJnt` ;
+string $twRig[];
+if (`checkBoxGrp -q  -v1   CHBG_neckTw`)
+		{
+		$twRig = an_twistNeckJnt ({$jnt, $children[0]}, {"-Z", "-Z"}, $jntNum, $switch, $name);
+		parent $twRig[1] $rigGrp;
+		an_connectColorToShape ($rigGrp+".twCtColor", $twRig[0]);
+		an_delSys ({$twRig[1]}, $rigGrp);
+		}
+
+select -cl  ;
+
+}
+
+
+
+global proc string[] an_twistNeckJnt (string $aim[], string $axsis[],int $jntNum, string $scaleObj, string $pfx)
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+//string $pfx = (an_sfxMinus($aim[0])+"Twist");      // убираем суффикс от косточки
+
+float $dist = an_distanceBetween ($aim[0], $aim[1]);														//  создаем кривую
+string $curveName = `curve -n ($pfx+$Sfx[11]) -d 2 -p  0 0 0   -p ($dist*0.5 ) 0 0 -p  $dist 0 0`;
+string $temp[] = `rebuildCurve -ch 0 -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 1 -kt 0 -s 2 -d 3 -tol 0.01 $curveName`;
+string $curveName = $temp[0];
+select $curveName;
+
+setAttr ($curveName+".inheritsTransform") 0;
+string $arcLength  = `arclen -ch 1`;
+
+string $MDVnod=`shadingNode -n ($pfx+ "_MDV#") -asUtility multiplyDivide`; //нода получает длинну одной косточки
+		setAttr ($MDVnod+".operation") 2;
+		connectAttr -f ($arcLength+".arcLength") ($MDVnod +".input1X");
+		setAttr ($MDVnod +".input2X") ($jntNum+1);
+
+string $ScaleMDVnod=`shadingNode -n ($pfx+"_MDV#") -asUtility multiplyDivide`;
+		setAttr ($ScaleMDVnod+".operation") 2; // установка деления
+		connectAttr -f ($MDVnod+".outputX") ($ScaleMDVnod +".input1X");
+		connectAttr -f ($scaleObj+".sx") ($ScaleMDVnod +".input2X");
+
+string $jointName[];
+int $i;
+for ($i = 0; $i <= ($jntNum+1); $i++)
+		{
+		if ($i != ($jntNum+1))  $jointName[$i] = `joint -r -n  ($pfx+$i+$Sfx[4]) -p 1 0 0  ` ;
+		if ($i == ($jntNum+1))  $jointName[$i] = `joint -r -n  ($pfx+$i+$Sfx[3]) -p 1 0 0  ` ;
+		if ($i != 0) connectAttr -f ($ScaleMDVnod+".outputX")($jointName[$i]+".translateX");
+		print $i;
+		}
+
+string $ikHandle[] = `ikHandle -n ($pfx+$Sfx[12]) -sol ikSplineSolver -ccv false -pcv false -sj $jointName[0]    -c $curveName`;
+
+  																			///создаем кластеры для управления кривой
+string $clusterA[]   = `cluster -n ($pfx+"A"+$Sfx[17]) ($curveName +".cv[0:1]") ` ; //  кластер a
+	xform -os -piv 0 0 0 $clusterA[1];
+	string $clustAGrp = `group -n ($pfx+"_ClasterA"+$Sfx[7]) $clusterA[1]`;
+	xform -os -piv 0 0 0 $clustAGrp;
+
+select -r ($curveName +".cv[2]") ;
+	string $clusterB[]   = `cluster -n ($pfx+"B"+$Sfx[17])` ; //   кластер b
+
+string $clusterC[]   = `cluster -n ($pfx+"C"+$Sfx[17]) ($curveName +".cv[3:4]")` ; //   кластер c
+	xform -os -piv $dist 0 0 $clusterC[1];
+	string $clustCGrp = `group -n ($pfx+"_ClasterC"+$Sfx[7]) $clusterC[1]`;
+	xform -os -piv $dist 0 0 $clustCGrp;
+
+				///создаем круппу которая позволяет настроить смещение оси стартовой косточки.
+string $startAimParent[] = `listRelatives -p $aim[0]`;
+string $upVectorTopLoc[] = `spaceLocator  -n ($pfx+"UpVecStart"+$Sfx[16]) `;
+string $upVecConGrp = `group -n ($pfx+"UpVec"+$Sfx[7]) $upVectorTopLoc[0] `;
+pointConstraint $aim[0] $upVecConGrp;
+orientConstraint $startAimParent[0] $upVecConGrp;
+
+switch($axsis[0])
+	{ case "-Z":
+		aimConstraint  -upVector 0 0 1 -worldUpType "objectrotation" -worldUpVector 0 0 1 -worldUpObject $upVectorTopLoc[0]  $clusterB[1] $clusterA[1];
+	    break;
+ 	  case "-Y":
+		aimConstraint  -upVector 0 1 0 -worldUpType "objectrotation" -worldUpVector 0 1 0 -worldUpObject $upVectorTopLoc[0]  $clusterB[1] $clusterA[1];
+	    break;
+ 	}
+switch($axsis[1])
+	{ case "-Z":
+		aimConstraint -aimVector -1 0 0 -upVector 0 0 1 -worldUpType "objectrotation" -worldUpVector 0 0 1 -worldUpObject $aim[1]  $clusterB[1] $clusterC[1];
+	    break;
+ 	  case "-Y":
+		aimConstraint -aimVector -1 0 0 -upVector 0 1 0 -worldUpType "objectrotation" -worldUpVector 0 1 0 -worldUpObject $aim[1]  $clusterB[1] $clusterC[1];
+	    break;
+ 	}
+																								//создаем контроллер
+string $ctrlName[] = `circle -n ($pfx+"Bend"+$Sfx[9])  -ch off -nr 1 0 0 -r ($dist/7)` ;
+string $oriGrp = `group -n ($pfx+"Bend"+$Sfx[7]) $ctrlName[0] `;
+string $conGrp = `group -n ($pfx+"Bend"+$Sfx[6]) $oriGrp `;
+
+
+
+
+
+string $temp[] = `pointConstraint $aim[0] $aim[1] $conGrp`; delete $temp[0];   //располагаем гр. с контроллером.
+an_aligneObg ($conGrp, $aim[0], "-rt" );
+
+string $parent[] =`listRelatives -p $aim[0]`;
+parentConstraint -mo $parent[0] $aim[0] $conGrp;
+
+orientConstraint -mo   $aim[0] $oriGrp;
+
+
+
+parent $clusterB[1] $ctrlName[0] ;
+
+addAttr -ln "startOffsVis"  -at "enum" -en "off:on" -keyable false $ctrlName[0]  ;  //делаем некейбл атрибут видимости офсет локатора.
+connectAttr  ($ctrlName[0]+".startOffsVis") ($upVectorTopLoc[0]+".v" );
+
+string $temp[] = `pointConstraint $ctrlName[0] $clusterB[1]`; delete $temp[0];
+
+parentConstraint $aim[0] $clustAGrp;
+parentConstraint $aim[1] $clustCGrp;
+
+/*
+switch($axsis[0])
+	{case "-Z":
+		aimConstraint   -aimVector -1 0 0 -upVector 0 0 1 -worldUpType "objectrotation" -worldUpVector 0 0 1 -worldUpObject $aim[0] $aim[0] $conGrp  ;
+	    break;
+ 	case "-Y":
+		aimConstraint   -aimVector -1 0 0 -upVector 0 1 0 -worldUpType "objectrotation" -worldUpVector 0 1 0 -worldUpObject $aim[0] $aim[0] $conGrp   ;
+	    break;
+ 	}
+*/
+
+setAttr ($ikHandle[0]+".dTwistControlEnable") 1;
+setAttr ($ikHandle[0]+".dWorldUpType") 4;
+connectAttr ($clusterA[1]+".worldMatrix[0]")  ($ikHandle[0]+".dWorldUpMatrix");
+connectAttr  ($clusterC[1]+".worldMatrix[0]")   ($ikHandle[0]+".dWorldUpMatrixEnd");
+
+string $rigGrp = `group -n ($pfx+"twistRig"+$Sfx[5]) $curveName $jointName[0] $clustAGrp $clustCGrp $ikHandle[0] $conGrp $upVecConGrp`;// главная группа
+xform -os -piv 0 0 0;
+
+an_connectRigVis ($rigGrp, {$curveName, $clustAGrp, $clustCGrp, $ikHandle[0], $clusterB[1]});
+
+
+an_delSys ({$arcLength, $MDVnod, $ScaleMDVnod }, $rigGrp);
+
+return {$ctrlName[0], $rigGrp, $oriGrp};
+
+}
+
+
+
+
+global proc an_loadNeckPreset ( )
+{
+string $jntNams[] = `an_NamesList_v02 -bones`;
+string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+string $ctNams[] = `an_NamesList_v02 -ctrl`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+
+textFieldButtonGrp -e -tx ($jntNams[2]+$Sfx[4]) TFBG_Neck;
+textFieldButtonGrp -e -tx ($ctNams[0]+$Sfx[9]) TFBG_SwitchCtrl;
+}
+
+global proc an_deleteNeckRig ()
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $jnt =  `textFieldGrp -q -text TFBG_Neck`;
+string $name  = an_sfxMinus($jnt);
+an_delRig (($name+"Rig"+$Sfx[5]));
+}
+
+global proc an_connectColorToShape (string $driverObjAttr, string $aim)
+{
+string $shape[] = `listRelatives -f -s $aim` ;
+for ($eachSh in $shape)
+	{
+	setAttr ($eachSh +".overrideEnabled") 1;
+    connectAttr -f $driverObjAttr ($eachSh +".overrideColor");
+	}
+}

@@ -1,0 +1,77 @@
+// @2012 Andrey Belyaev
+// www.3drigging.com
+
+/*! ## Скрипт создает указатель проэкции центра тяжести на пол.  Версия 01.(12.03.12)
+> 1. Обозначить свитч контроллер.
+> 2. Выделеть косточку (или любой трансформ) находящуюся в районе центра гравитации
+*/
+/*! ## Что нового:
+> 1. --
+*/
+/*! ## Что не так:
+> 1. --
+
+*/
+
+
+
+
+
+ global proc s10_an_centerOfGravity()
+{
+$win = "an_centerOfGravityRigTool";
+if (`window -exists $win`) deleteUI $win;
+window -t "Center Of Gravity Rigging Tool 1.0" -w 350 -h 130 -s true -rtf true -menuBar true $win;
+columnLayout -adj 1  mainCol;
+separator -st "none" -h 10;////////////////////////////////
+text   "Select center of gravity to making rig";
+
+separator -st "none" -h 6;
+    	     textFieldButtonGrp -l "Switch controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] legTFBG_GenCtrl;" legTFBG_GenCtrl;
+separator   -st "none" -h 6;
+button -label "Center Of Gravity rig" -c "an_doCenterOfGravity()";
+showWindow $win;
+}
+
+
+global proc an_doCenterOfGravity()
+{
+string $sel[] = `ls -sl`;
+string $root = $sel[0];
+string $ct = `textFieldButtonGrp -q -tx  legTFBG_GenCtrl`;
+string $sfx = "Gravity";
+
+string $curveName = `curve -d 1 -n ($sfx+"_Line") -p  0 0 0  -p  0 0 1 -k 0 -k 1` ;
+string $cross = `curve -d 1 -p -1 0 1 -p 1 0 -1 -p 0 0 0 -p 1 0 1 -p -1 0 -1 -k 0 -k 1 -k 2 -k 3 -k 4` ;
+
+select -r ( $curveName +".cv[0]") ;
+string $ClusterName[] = `cluster -n ($sfx+"_ClusterA")  -relative -envelope 1`;
+pointConstraint  $root $ClusterName[1];
+select -r ( $curveName+".cv[1]") ;
+string $Cluster2Name[] = `cluster -n ($sfx+"_ClusterB")  -relative -envelope 1`;
+pointConstraint  -skip y -weight 1 $root  $Cluster2Name[1];
+pointConstraint  -skip y -weight 1 $root  $cross;
+
+rebuildCurve -ch 1 -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 1 -kt 0 -s 15 -d 1 -tol 0.01 $curveName;
+
+//select -r Hips_jnt_helpLine.ep[0:17] ;
+string $Curves[] =`detachCurve -ch 1 -cos on -rpo 1   ($curveName+".ep[0]") ($curveName+".ep[1]") ($curveName+".ep[2]") ($curveName+".ep[3]")
+		($curveName+".ep[4]") ($curveName+".ep[5]") ($curveName+".ep[6]") ($curveName+".ep[7]") ($curveName+".ep[8]") ($curveName+".ep[9]")
+		($curveName+".ep[10]") ($curveName+".ep[11]") ($curveName+".ep[12]") ($curveName+".ep[13]") ($curveName+".ep[14]") ($curveName+".ep[15]")`;
+delete $Curves[1] $Curves[3] $Curves[5] $Curves[7] $Curves[9] $Curves[11] $Curves[13] $Curves[15] ;
+string $curvGroup  = `group -n ($sfx+"_curvGroup")`;
+string $rigGroup  = `group -n ($sfx+"_rigGroup")  $curvGroup  $Cluster2Name[1] $ClusterName[1] $curveName $cross`;
+
+an_lockAndHide ({$Cluster2Name[1], $ClusterName[1], $curveName}) ;
+
+setAttr ($rigGroup+".overrideEnabled") 1;
+setAttr ($rigGroup+".overrideDisplayType") 2;
+
+addAttr   -ln "CenterOfGravity" -dv 0  -keyable true  $ct ;
+setAttr -lock true ($ct+".CenterOfGravity");
+addAttr   -ln "gravVisibility" -dv 1   -min 0 -max 1  -keyable true  $ct ;
+connectAttr ($ct+".gravVisibility") ($rigGroup+".v");
+}
+
+

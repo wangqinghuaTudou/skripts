@@ -1,0 +1,41 @@
+global proc pvReplaceUV()
+{
+    $sel = `ls -sl` ;
+    for ($each in $sel)
+    {
+        if (`objExists ($each + "ShapeOrig")`)
+        {
+            setAttr ($each + "Shape.intermediateObject") 1 ;
+            setAttr ($each + "ShapeOrig.intermediateObject") 0 ;
+            select -r ("mapped_" + $each) ;
+            select -add $each ;
+            transferAttributes -transferPositions 0 -transferNormals 0 -transferUVs 2 -transferColors 0 -sampleSpace 4 -sourceUvSpace "map1" -targetUvSpace "map1" -searchMethod 3-flipUVs 0 -colorBorders 1 ;
+            select -r $each ;
+            DeleteHistory ;
+            setAttr ($each + "Shape.intermediateObject") 0 ;
+            setAttr ($each + "ShapeOrig.intermediateObject") 1 ;
+        }
+        else
+        {
+            select -r ("mapped_" + $each) ;
+            select -add $each ;
+            transferAttributes -transferPositions 0 -transferNormals 0 -transferUVs 2 -transferColors 0 -sampleSpace 4 -sourceUvSpace "map1" -targetUvSpace "map1" -searchMethod 3-flipUVs 0 -colorBorders 1 ;
+            select -r $each ;
+            DeleteHistory ;
+        }
+    }
+}
+
+global proc pvSwitchOrigGeo()
+{
+    $sel = `ls -sl` ;
+    for ($each in $sel)
+    {
+        if (`objExists ($each + "ShapeOrig")`)
+        {
+            $visShape = `getAttr ($each + "Shape.intermediateObject")` ;
+            setAttr ($each + "Shape.intermediateObject") (1 - $visShape) ;
+            setAttr ($each + "ShapeOrig.intermediateObject") $visShape ;
+        }
+    }
+}

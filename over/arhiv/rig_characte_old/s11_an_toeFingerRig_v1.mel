@@ -1,0 +1,302 @@
+//select -r "l_upArm_aimJnt" ;
+
+
+ /*
+
+// @2012 Andrey Belyaev
+// www.3drigging.com
+
+/*! ## Скрипт создает риг для  пальца .  Версия 4.00 (31.08.12)
+> 1. Выделить косточку пальца и запустить скрипт
+> 2. Ориентация  для всех косточек должна быть Z на згиб
+*/
+
+/*! ## Что нового:
+> 1.Устранил баги и добавил систему удаления рига.
+*/
+
+/*! ## Надо сделать:
+> 1.-
+
+*/
+
+
+global proc s11_an_toeFingerRig_v1()
+{
+string $win = "toeFingersRigging";
+if (`window -ex $win`) deleteUI $win ;
+window -t "toe fingers rig 1.00" -s true -rtf true -menuBar true $win ;
+	menu -label "Additional comand"  ;
+	    	menuItem -label "Add attr to thamb" -command "an_addAttr()";
+			menuItem -label "Load \"Left\" preset" -command "loadFingerPreset(\"Left\")";
+			menuItem -label "Load \"Right\" preset" -command "loadFingerPreset(\"Right\")";
+		columnLayout -adj 1;
+		separator -st "none" -h 6  ;
+			text  "Select finger joint! To remove system select the rigGroup and press \"Delete finger rig\""	;
+		separator -st "none"  -h 6;
+		 	radioButtonGrp -l "Side:" -nrb 2 -la2 "Left" "Right" -sl 1 RBG_fSide;
+		separator -st "none" -h 4;////////////////////////////////
+			textFieldButtonGrp -label "Switch controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_Switch;" TFBG_Switch;
+
+			textFieldButtonGrp -label "Foot controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_fingHandCtrl;" TFBG_fingHandCtrl;
+			
+			textFieldButtonGrp -label "Toe joint:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_ToeJoint;" TFBG_ToeJoint;
+
+			 textFieldButtonGrp -l "Parent_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_fingParentCtrl;" TFBG_fingParentCtrl;
+
+        separator -st "none" -h 5;////////////////////////////////
+			rowColumnLayout -nc 3   -cw 1 153 -cw 2 153 -cw 3 153 ;
+					 button   -l  "Help" -c "an_FingerRigHelp()";
+					 button   -l "Delete finger rig" -c "an_deleteFingerRig()";
+					 button -l "Make finger rig" -c "an_doFingerRig ()";
+			setParent ..;
+showWindow $win ;
+}
+
+
+
+global proc an_doFingerRig()
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $switch = `textFieldGrp -q -text TFBG_Switch`;
+string $hand = `textFieldButtonGrp -q -tx   TFBG_fingHandCtrl`;
+string $parentCt =`textFieldButtonGrp -q -tx   TFBG_fingParentCtrl`;
+
+string $toeJoin  = `textFieldButtonGrp -q -tx  TFBG_ToeJoint`;
+
+string $sel[] = `ls -sl`;
+string $jnt[] = an_childCapture($sel[0]);
+int $rotOrder = `getAttr  ($jnt[0]+".rotateOrder")`; //получаем ротейшн ордер пальца.
+string $parent[] = `listRelatives -p $sel[0]`;
+string $pfx = an_sfxMinus($parent[0]) ;
+
+string $fkJnt[] = an_duplicatAndRename($parent[0],("Fk"+$Sfx[3]));
+string $ikJnt[] = an_duplicatAndRename($sel[0],("Ik"+$Sfx[3]));
+
+
+parent $ikJnt[0] $fkJnt[0];
+parent -w $fkJnt[0];
+
+string $ctName = `substitute "1_bind" $parent[0] ""`;            //создаем контроллер
+	string $ct = an_fingerCtrl ($ctName+$Sfx[9]);
+				addAttr -ln "IkFkSwitch" -min 0 -max 1 -dv 0 -keyable true $ct ;
+				//addAttr -ln "IkCtrlVis" -min 0 -max 1 -dv 0  -keyable true $ct ;
+				addAttr -ln "Presets" -dv 0 -keyable true $ct ;
+				setAttr -lock true ($ct+".Presets" );
+				addAttr -ln "Curl" -dv 0 -keyable true $ct ;
+				addAttr -ln "Length1" -dv 1 -keyable true $ct ;
+				addAttr -ln "Length2" -dv 1 -keyable true $ct ;
+				 
+
+				addAttr -ln "Ofset" -dv 0 -keyable true $ct ;
+				setAttr -lock true ($ct+".Ofset" );
+				addAttr -ln "Falange1_rz" -dv 0 -keyable true $ct ;
+				addAttr -ln "Falange1_ry" -dv 0 -keyable false $ct ;
+
+
+	an_ctColor ($ct, $switch, `radioButtonGrp -q -sl RBG_fSide`) ;
+	an_connector (($switch+"."+`an_fngSide`+"armCtrls"), $ct+".v", 1 );
+	string $Ctrl[] = an_ctGrp ($ct);
+	setAttr  ($ct+".rotateOrder") $rotOrder ;
+	string $tmp[] = `parentConstraint $sel[0] $Ctrl[0]`; delete $tmp[0];
+
+string $Constr[]= `orientConstraint $ct $fkJnt[1]`;                //настраиваем фк косточки
+connectAttr -f ($ct+".Curl" ) ($Constr[0]+".offsetZ")  ;
+
+//print $fkJnt[3];
+
+setDrivenKeyframe  -itt linear -ott linear   -cd ($ct+".Curl" ) -dv 179  -v 179 ($fkJnt[2] +".rz");
+setDrivenKeyframe  -itt linear -ott linear   -cd ($ct+".Curl" ) -dv -179  -v -179 ($fkJnt[2] +".rz");
+setDrivenKeyframe  -itt linear -ott linear   -cd ($ct+".Curl" ) -dv 179  -v 179 ($fkJnt[3] +".rz");
+setDrivenKeyframe  -itt linear -ott linear   -cd ($ct+".Curl" ) -dv -179  -v -179 ($fkJnt[3] +".rz");
+
+setDrivenKeyframe  -itt linear -ott linear   -cd  ($ct+".Falange1_rz") -dv -179  -v -179 ($fkJnt[2]+".rz");
+setDrivenKeyframe  -itt linear -ott linear   -cd  ($ct+".Falange1_rz") -dv 179  -v 179  ($fkJnt[2]+".rz");
+//setDrivenKeyframe  -itt linear -ott linear   -cd  ($ct+".Falange2_rz") -dv -179  -v -179 ($fkJnt[3]+".rz");
+//setDrivenKeyframe  -itt linear -ott linear   -cd  ($ct+".Falange2_rz") -dv 179  -v 179  ($fkJnt[3]+".rz");
+
+setDrivenKeyframe  -itt linear -ott linear   -cd  ($ct+".Falange1_ry") -dv -179  -v -179 ($fkJnt[2]+".ry");
+setDrivenKeyframe  -itt linear -ott linear   -cd  ($ct+".Falange1_ry") -dv 179  -v 179  ($fkJnt[2]+".ry");
+//setDrivenKeyframe  -itt linear -ott linear   -cd  ($ct+".Falange2_ry") -dv -179  -v -179 ($fkJnt[3]+".ry");
+//setDrivenKeyframe  -itt linear -ott linear   -cd  ($ct+".Falange2_ry") -dv 179  -v 179  ($fkJnt[3]+".ry");
+
+                                                            //Создаем ик контроллер
+
+string $tmpS =an_Ctrl( "-ikAdd", ($ctName+"Ik"+$Sfx[9]) )	;
+	string $CtrlIk[] = an_ctGrp ($tmpS);
+	$size = size($ikJnt);
+	string $tmp[] = `parentConstraint $ikJnt[$size-1] $CtrlIk[0]`; delete $tmp[0];
+
+
+an_spaceMaker_v2_0  (0,{$toeJoin, $hand, $parentCt}, {"toe", "foot", "world"}, $CtrlIk[1], $CtrlIk[2] );
+	an_ctColor ($CtrlIk[2], $switch, `radioButtonGrp -q -sl RBG_fSide`) ;
+	an_connector (($switch+"."+`an_fngSide`+"legCtrls"), $CtrlIk[2]+".v", 1 );
+	connectAttr -f ($ct+".IkFkSwitch" ) ($CtrlIk[2]+".visibility")  ;
+	an_hideAttr ($CtrlIk[2], { "rx", "ry", "rz", "sx", "sy", "sz", "v"});
+
+
+	//////////////////////////////////////////риг полвектора  и ик хандла
+
+vector $pVector = an_pVectorPoz ($ikJnt[0], $ikJnt [$size-1]);
+string $polVector = `group -em -n ($pfx+"polVektor"+$Sfx[5])`;
+move -r ($pVector.x) ($pVector.y) ($pVector.z);
+
+
+string $polVectorAim = `group -em -n ($pfx+"polVektorAim"+$Sfx[5])`;
+pointConstraint $ikJnt[0] $polVectorAim;
+string $aimConstr[] = `aimConstraint -aimVector 1 0 0 -upVector 0 0 1 -worldUpType "objectrotation" -worldUpVector 0 0 1 -worldUpObject $Ctrl[0] $CtrlIk[2] $polVectorAim`;
+parent $polVector $polVectorAim;
+string $ikHandle[]=`ikHandle  -n ($pfx+$Sfx[12]) -sol "ikRPsolver" -shf 0 -sj $ikJnt [0] -ee $ikJnt [$size-1] `;     //ик хандл
+poleVectorConstraint $polVector $ikHandle[0];
+parent $ikHandle[0] $CtrlIk[2];
+addAttr -ln "twist" -dv 0 -keyable true $CtrlIk[2] ;
+connectAttr ($CtrlIk[2]+".twist")   ($aimConstr[0]+".offsetX");
+for ($each in $ikJnt) setAttr ($each+".preferredAngleZ") 50;
+
+an_mixViaSDK({$fkJnt[1], $ikJnt[0], $jnt[0]} , $ct);
+an_mixViaSDK({$fkJnt[2], $ikJnt[1], $jnt[1]} , $ct);
+an_mixViaSDK({$fkJnt[3], $ikJnt[2], $jnt[2]} , $ct);
+
+
+
+
+connectAttr -f ($ct+".Length1")  ($ikJnt[0] +".sx");
+connectAttr -f ($ct+".Length2")  ($ikJnt[1] +".sx");
+//connectAttr -f ($ct+".Length3")  ($ikJnt[2] +".sx");
+connectAttr -f ($ct+".Length1")  ($fkJnt[0] +".sx");
+connectAttr -f ($ct+".Length2")  ($fkJnt[1] +".sx");
+//connectAttr -f ($ct+".Length3")  ($fkJnt[2] +".sx");
+connectAttr -f ($ct+".Length1")  ($jnt[0] +".sx");
+connectAttr -f ($ct+".Length2")  ($jnt[1] +".sx");
+//connectAttr -f ($ct+".Length3")  ($jnt[2] +".sx");
+
+
+string $grp = `group -n ($pfx+"Rig"+$Sfx[5]) $fkJnt[0] $Ctrl[0] $CtrlIk[0] $polVectorAim`;
+parentConstraint -mo  $parent[0] $grp;
+
+an_connectRigVis ($grp, {$fkJnt[0], $ikHandle[0]});
+an_hideAttr ($ct, {"tx", "ty", "tz", "sx", "sy", "sz", "v"});
+
+
+////////////
+ pvAddLimbAttr ($ct, (`an_fngSide`+"arm"));
+/////////////////
+
+an_delSys ({$fkJnt[3],$fkJnt[2],$fkJnt[1],$fkJnt[0]}, $grp);
+}
+
+
+
+
+global proc an_mixViaSDK(string $objs[], string $ctAttr) /// последний обдж - скин кость.
+{
+//string $objs[] = `ls -sl`;
+//string $ctAttr = "l_index_CT";
+
+string $MixA = `createNode -n ((an_sfxMinus ($objs[2]))+"MixA") "blendColors"`;
+	connectAttr -f ($objs[0]+".rotate") ($MixA+".color2");
+	connectAttr -f ($objs[1]+".rotate") ($MixA+".color1");
+	connectAttr -f ($ctAttr+".IkFkSwitch")  ($MixA+".blender");
+	//   connectAttr -f ($MixA+".output") ($objs[2]+".rotate"); //надо установить драйвен ки..
+
+	setDrivenKeyframe  -itt linear -ott linear   -cd ($MixA+".outputR") -dv 179  -v 179 ($objs[2] +".rx");
+	setDrivenKeyframe  -itt linear -ott linear   -cd ($MixA+".outputR") -dv -179  -v -179 ($objs[2] +".rx");
+
+	setDrivenKeyframe  -itt linear -ott linear   -cd ($MixA+".outputG") -dv 179  -v 179 ($objs[2] +".ry");
+	setDrivenKeyframe  -itt linear -ott linear   -cd ($MixA+".outputG") -dv -179  -v -179 ($objs[2] +".ry");
+
+	setDrivenKeyframe  -itt linear -ott linear   -cd ($MixA+".outputB") -dv 179  -v 179 ($objs[2] +".rz");
+	setDrivenKeyframe  -itt linear -ott linear   -cd ($MixA+".outputB") -dv -179  -v -179 ($objs[2] +".rz");
+
+
+
+   an_delSys ({$MixA}, $objs[0]);
+}
+
+
+global proc loadFingerPreset (string $side)
+{
+    //string $side = "l_";    
+    string $jntNams[] = `an_NamesList_v02 -bones`;
+    string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+    string $ctNams[] = `an_NamesList_v02 -ctrl`;
+    string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+    
+    if (`gmatch $side "Left"`)
+    		{
+    		radioButtonGrp -e -sl 1 RBG_fSide;
+    		$side=$Pfx[0];
+    		}
+    else
+    		{
+    		radioButtonGrp -e -sl 2 RBG_fSide;
+    		$side=$Pfx[1];
+    		}
+    
+    textFieldButtonGrp -e -tx ($ctNams[0]+$Sfx[9]) TFBG_Switch;
+    textFieldButtonGrp -e -tx ($side+$ctNams[17]+$Sfx[9]) TFBG_fingHandCtrl;
+    textFieldButtonGrp -e -tx ($ctNams[2]+$Sfx[9]) TFBG_fingParentCtrl;
+}
+
+
+
+global proc an_addAttr()
+{
+string $sel[] = `ls -sl`;
+addAttr   -ln "hand" -dv 0  -keyable true  $sel[0] ;
+setAttr -lock true ($sel[0]+".hand" );
+addAttr   -ln "handClench" -dv 0 -min -10 -max 10 -keyable true  $sel[0] ;
+addAttr   -ln "spread" -dv 0 -min -10 -max 10 -keyable true  $sel[0] ;
+}
+
+
+
+global proc string an_fngSide ()
+{
+string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+ if ((`radioButtonGrp -q -sl RBG_fSide`)==1) {return $Pfx[0];} else {return $Pfx[1];}
+}
+
+
+global proc string an_fingerCtrl (string $name)
+{
+ string $curve = `curve  -n $name -d 1 -p 0.207219 -0.26344 0 -p 0.12858 -0.309395 -0.0914164 -p -0.00425912 -0.33483 -0.0914164
+		-p 0.0413212 -0.332363 -0.0457082 -p -0.0510686 -0.330875 -0.0457082 -p -0.0955888 -0.320795 -0.0914164
+		-p -0.217529 -0.254219 -0.0914164 -p -0.140959 -0.303543 0 -p -0.217529 -0.254219 0.0914164 -p -0.0955888 -0.320795 0.0914164
+		-p -0.0510686 -0.330875 0.0457082 -p 0.0413212 -0.332363 0.0457082 -p -0.00425912 -0.33483 0.0914164 -p 0.12858 -0.309395 0.0914164
+		-p 0.207219 -0.26344 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14`;
+		string $firstShape[] = `listRelatives -s $curve`;
+
+string $curves[] = {$curve} ;
+
+for ($i=1; $i<5; ++$i)  // поворачиваем исходный элемент по кругу и делаем фриз трансформ
+		{
+		string $tmp[] =  `duplicate -n ($name+"add#"+$i) -rc -rr $curves[$i-1] `;
+		$curves[$i] = $tmp[0];
+		rotate -r 0 0 72    ;
+		makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $curves[$i] ;
+		}
+
+for ($i=1; $i<5; ++$i)
+		{
+		string $shape[] = `listRelatives -s $curves[$i]`;
+		parent -r -s $shape[0] $curve;
+		delete $curves[$i];
+		//connectAttr   ($firstShape[0]+".drawOverride") ($shape[0]+".drawOverride");
+		}
+return $curve;
+}
+
+
+global proc an_deleteFingerRig ()
+{
+string $Obg[] = `ls -sl`;
+an_delRig ($Obg[0]);
+}
+
+
+

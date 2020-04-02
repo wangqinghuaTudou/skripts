@@ -1,0 +1,22 @@
+global proc  s02_an_recordJntPos ()
+{
+    $win = "an_recordJntPos_win";
+    if (`window -exists $win`)
+deleteUI $win;
+window -t "Record joints position" -w 350 -h 50 -s true -rtf true -menuBar true $win;
+
+columnLayout -adj true -co "both" 10;
+separator -st "none" -h 6;
+
+ text "Script saves, records, and sets the initial objects position ";
+
+separator -st "none" -h 6;
+			rowColumnLayout -nc 3   -cw 1 140 -cw 2 140 -cw 3 140 ;
+			 button   -l  "Records to file"  ;
+			 button   -l "Records position" -c "string $sel[] = `ls -sl`; an_saveOriginalValues($sel); print \"Values recorded!!!\"; ";
+			 button   -l "Set position" -c "string $sel[] = `ls -sl`; an_setOriginalValues($sel);";
+			 setParent ..;
+showWindow $win;
+}
+
+

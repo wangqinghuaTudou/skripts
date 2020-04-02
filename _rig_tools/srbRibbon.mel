@@ -1,0 +1,412 @@
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//srbRibbon.mel - MEL Script
+//Copyright (C) Suchan Raj Bajracharya
+//Title: SRB - Ribbon v0.2
+//AUTHOR:	Suchan Raj Bajracharya
+//				srb_yagya@hotmail.com		
+//				suchan@incessantrain.com
+//				suchanspot.blogspot.com
+//VERSION:0.1
+//CREATION DATE: 15thDec,2008
+//LAST MODIFIED DATE: 20thJuly,2009
+//DESCRIPTION: Use this Tool to automatically create a ribbon system...
+//USAGE: Enter the name, select options and fill in your values and click "Apply"...
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//CREATE THE GLOBAL PROCEDURE---
+global proc srbRibbon ()
+{
+//CREATE THE MAIN WINDOW---
+if (`window -exists srbRibbonWin`) deleteUI srbRibbonWin;
+window
+-rtf 1
+-title "SRB - Ribbon v0.2"
+srbRibbonWin;
+
+columnLayout -adj 1;
+
+//CREATE THE TEXT FIELD FOR GIVING NAME OF THE RIBBON---
+textFieldGrp
+	-label "Ribbon name:"
+	-text "Ribbon"
+srbRibbonTFG;
+
+//CREATE THE FIELD SLIDERS FOR ENTERING SOME VALUES FOR RIBBON OPTIONS---
+floatSliderGrp 
+	-label "Width:" -field true
+  -minValue -0.0001 -maxValue 5.0
+  -fieldMinValue 0.0001 -fieldMaxValue 100.0
+  -value 0.1
+srbRibbonWidthFSG;
+  
+floatSliderGrp 
+	-label "Length:" -field true
+  -minValue -0.0000 -maxValue 50.0
+  -fieldMinValue 0.0000 -fieldMaxValue 100.0
+  -value 5.0
+srbRibbonLengthFSG;  
+  
+intSliderGrp 
+	-label "U patches:" -field true
+  	-minValue 1 -maxValue 10
+  	-fieldMinValue 1 -fieldMaxValue 100
+  	-value 1
+srbRibbonUISG;
+
+intSliderGrp 
+	-label "V patches:" -field true
+	-minValue 1 -maxValue 10
+  	-fieldMinValue 1 -fieldMaxValue 100
+ 	-value 5
+srbRibbonVISG;
+
+//RADIO BUTTON OPTION FOR TYPE OF RIBBON---
+radioButtonGrp 	
+	-numberOfRadioButtons 2
+	-label "Ribbon options:" 
+	-labelArray2 "Follicle" "Non - Follicle" 
+	-select 1
+	-columnWidth4  120 100 100 100
+	-columnAlign4 "right" "left" "left" "left"
+srbRibbonOptionRBG;
+
+//CREATE THE BUTTON FOR CREATING RIBBON---
+button -l "Apply" -c "srbRibbonProc";
+
+showWindow srbRibbonWin;
+//---END OF WINDOW
+}
+
+//CREATE THE MAIN PROCEDURE FOR RIBBON CREATION---
+global proc srbRibbonProc ()
+{
+
+//QUERY AND STORE SOME VALUES---
+string $ribbonName = `textFieldGrp -q -text srbRibbonTFG`;
+float $widthVal = `floatSliderGrp -q -value srbRibbonWidthFSG`;
+float $lengthVal = `floatSliderGrp -q -value srbRibbonLengthFSG`;
+int $UVal = `intSliderGrp -q -value srbRibbonUISG`;
+int $VVal = `intSliderGrp -q -value srbRibbonVISG`;
+int $ribbonOptionVal = `radioButtonGrp -q -select srbRibbonOptionRBG`;
+
+//CREATE THE NURBS PLANE---	
+string $ribbonGeo[] = `nurbsPlane -p 0 0 0 -ax 0 1 0 -w $widthVal -lr $lengthVal -d 3 -u $UVal -v $VVal -ch 1 -n ($ribbonName + "Rbbn01_geo")`;	
+
+//REBUILD THE RIBBON GEOMETRY---
+if ($VVal > $UVal)
+{
+rebuildSurface -ch 1 -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kc 0 -su $UVal -du 1 -sv $VVal -dv 3 -tol 0.000155 -fr 0  -dir 2 $ribbonGeo[0];
+};
+if ($UVal > $VVal)
+{
+rebuildSurface -ch 1 -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kc 0 -su $UVal -du 3 -sv $VVal -dv 1 -tol 0.000155 -fr 0  -dir 2 $ribbonGeo[0];
+};
+
+//CLEAR HISTORY OF RIBBON GEOMETRY---
+select -r $ribbonGeo[0];
+DeleteHistory;
+delete -ch;
+
+//CREATE THE HAIR FOLLICLES	OR POINT ON SURFACE INFO NODES ACCORDING TO THE OPTIONS SELECTED---	
+//ON THE BASIS OF HAIR FOLLICLES--- 
+if ($ribbonOptionVal == 1)
+{
+//ON THE BASIS OF HAIR FOLLICLES---	
+select -r $ribbonGeo[0]; 
+createHair $UVal $VVal 10 0 0 0 0 5 0 2 1 1;
+
+//CLEAN UP AND RENAME---
+string $selFols = `select -r ($ribbonName + "*geoFollicle*")`;
+string $folGrp = `group -n ($ribbonName + "Rbbn01_fol_grp")`; 
+parent -w;
+delete ("hairSystem*");
+
+string $selFols = `select -r ($ribbonName + "*geoFollicle*")`;
+string	$sel[] = `ls -sl`;
+
+int $noFol = (size($sel))/2;
+
+for ($i = 0; $i<$noFol; $i++)
+{
+int $j = $i + 1;
+string $newName = ($ribbonName + "Rbbn0" + $j) + ("_fol") ;
+rename $sel[$i] $newName;
+};
+
+//CREATE JOINTS SNAPPED AND PARENTED TO THE FOLLICLE---
+select -clear;
+for($a = 0;$a<$noFol;$a++)
+	{
+	int $b = $a + 1;
+	joint -n ($ribbonName +"Rbbn0" + $b + "_jj") -p 0 0 0;
+	parent -relative ($ribbonName +"Rbbn0" + $b + "_jj") (($ribbonName + "Rbbn0" + $b) + ("_fol"));
+	select -clear;
+	}
+};
+
+//FOR POINT ON SURFACE METHOD--- 
+if ($ribbonOptionVal == 2)
+{
+//ON THE BASIS OF POINT ON SURFACE INFO NODE---	
+select -r $ribbonGeo[0];
+pickWalk -d "down";
+string $ribbonGeoShape[] = `ls -sl`;
+
+//VERIFICATION---
+int $no;
+
+if ($UVal > $VVal)
+{
+$no = $UVal;	
+};
+
+
+if ($VVal > $UVal)
+{
+$no = $VVal;	
+};
+
+string $ribbonPosGrpVal = `group -em -n ($ribbonName + "Rbbn01_pos_grp")`;
+xform -ws -piv 0 0 0;
+//EXECUTE THE MAIN LOOP---
+for($i = 1; $i <= $no; $i++)
+{
+string $POSINode = `createNode pointOnSurfaceInfo`;
+string $newName = ($ribbonName + "Rbbn0" + $i) + ("_posi");
+$POSIName = `rename $POSINode $newName`;
+
+connectAttr -f ($ribbonGeoShape[0] + ".worldSpace[0]")($POSIName + ".inputSurface");	
+
+if ($VVal > $UVal)
+{
+float $normVVal = abs((1.0/$no) * $i);
+setAttr ($POSIName + ".parameterV") $normVVal; 
+setAttr ($POSIName + ".parameterU") 0.5;
+};
+
+if ($UVal > $VVal)
+{
+float $normUVal = abs((1.0/$no) * $i);
+setAttr ($POSIName + ".parameterV") 0.5; 
+setAttr ($POSIName + ".parameterU") $normUVal;
+};		
+			
+	
+string $posGrp = `group -em -n ($ribbonName + "Rbbn0" + $i + "_pos")`;
+string $upGrp = `group -em -n ($ribbonName + "Rbbn0" + $i + "_up")`;	
+string $aimGrp = `group -em -n ($ribbonName + "Rbbn0" + $i + "_aim")`;
+		
+select -r $upGrp;
+select -add $aimGrp;
+select -add $posGrp;
+parent;
+
+select -r $posGrp;
+select -add $ribbonPosGrpVal;
+parent;
+	
+connectAttr -f ($POSIName + ".position")($posGrp + ".translate");	
+connectAttr -f ($POSIName + ".tangentU")($upGrp + ".translate");
+connectAttr -f ($POSIName + ".tangentV")($aimGrp + ".translate");
+	
+select -cl;
+	
+$JJ = `joint -p 0 0 0 -n ($ribbonName + "Rbbn0" + $i + "_jj")`;
+select -r $JJ;
+select -tgl $posGrp;
+parent -relative $JJ $posGrp;	
+
+select -r $JJ; 
+$JJOff = `group -n ($ribbonName + "Rbbn0" + $i + "_jj_off")`;
+	
+select -r $aimGrp;
+select -tgl $JJOff;
+aimConstraint -offset 0 0 0 -weight 1 -aimVector 0 1 0 -upVector 0 0 1 -worldUpType "object" -worldUpObject ($upGrp)-n ("aimConstraint" + $i);	
+}
+};
+
+//CREATE SOME TEMPORARY CLUSTERS TO PLACE THE POS LOCATORS---	
+int $vNo;
+
+if ($UVal > $VVal)
+{
+$vNo = $UVal + 2; 
+select -r ($ribbonName + "Rbbn01_geo.cv[" + $vNo + "][0:1]") ;
+cluster -n spCltr;
+select -r ($ribbonName + "Rbbn01_geo.cv[0][0:1]") ;
+cluster -n epCltr;
+};
+
+if ($VVal > $UVal)
+{
+$vNo = $VVal + 2;
+select -r ($ribbonName + "Rbbn01_geo.cv[0:1][" + $vNo + "]");
+cluster -n spCltr;
+select -r ($ribbonName + "Rbbn01_geo.cv[0:1][0]");
+cluster -n epCltr;
+};
+
+//CREATE SOME LOCATORS---
+//CREATE START POINT LOCATORS AND PARENT THEM PROPERLY---
+string $spLocPos[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnSp01_pos")`;
+string $spLocAim[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnSp01_aim")`;
+string $spLocUp[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnSp01_up")`;
+
+select -r $spLocUp[0];
+select -add $spLocAim[0];
+select -add $spLocPos[0];
+parent;
+
+//CREATE MIDDLE POINT LOCATORS AND PARENT THEM PROPERLY---
+string $mpLocPos[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnMp01_pos")`;
+string $mpLocAim[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnMp01_aim")`;
+string $mpLocUp[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnMp01_up")`;
+
+select -r $mpLocUp[0];
+select -add $mpLocAim[0];
+select -add $mpLocPos[0];
+parent;
+
+//CREATE END POINT LOCATORS AND PARENT THEM PROPERLY---
+string $epLocPos[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnEp01_pos")`;
+string $epLocAim[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnEp01_aim")`;
+string $epLocUp[] = `spaceLocator -p 0 0 0 -n ($ribbonName + "RbbnEp01_up")`;
+
+select -r $epLocUp[0];
+select -add $epLocAim[0];
+select -add $epLocPos[0];
+parent;
+
+//CONSTRAINT EACH LOCATORS PROPERLY---
+select -r spCltrHandle;
+select -add $spLocPos[0];
+pointConstraint -offset 0 0 0 -weight 1;
+delete ($ribbonName + "RbbnSp01_pos_pointConstraint1");
+
+select -r epCltrHandle;
+select -add $epLocPos[0];
+pointConstraint -offset 0 0 0 -weight 1;
+delete ($ribbonName + "RbbnEp01_pos_pointConstraint1");
+
+select -r $spLocPos[0];
+select -add $epLocPos[0];
+select -add $mpLocPos[0];
+pointConstraint -offset 0 0 0 -weight 1;
+
+select -r $spLocUp[0];
+select -add $epLocUp[0];
+select -add $mpLocUp[0];
+pointConstraint -offset 0 0 0 -weight 1;
+
+//OFFSET THE POSITION OF THE UP LOCATOR---
+int $offsetUp;
+if ($lengthVal > $widthVal)
+{
+$offsetUp = $lengthVal * 0.25;
+
+};
+
+if ($widthVal > $lengthVal)
+{
+$offsetUp = $widthVal * 0.25;
+};
+
+setAttr ($spLocUp[0] + ".ty") ($offsetUp * .25); 
+setAttr ($epLocUp[0] + ".ty") ($offsetUp * .25); 
+
+//CREATE THE CONTROL JOINTS---
+select -cl;
+float $tx = 0.0;
+float $tz = 0.0;
+
+if ($VVal > $UVal)
+{
+$tz = $lengthVal	 * 0.2;
+};
+
+if ($UVal > $VVal)
+{
+$tx = $widthVal * 0.2;
+};
+
+//FOR START POINT JOINT---
+joint -p 0 0 0 -n ($ribbonName + "RbbnSp01_jc") ;
+joint -p ($tx * 0.1) 0 ($tz * 0.1) -n ($ribbonName + "RbbnSp02_jc") ;
+joint -e -zso -oj xyz -sao yup ($ribbonName + "RbbnSp01_jc");
+
+//FOR MIDDLE POINT JOINT---
+select -cl;
+joint -p 0 0 0 -n ($ribbonName + "RbbnMp01_jc") ;
+joint -e -zso -oj xyz -sao yup ($ribbonName + "RbbnMp01_jc");
+
+//FOR END POINT JOINT---
+select -cl;
+joint -p 0 0 0 -n ($ribbonName + "RbbnEp01_jc") ;
+joint -p ($tx * -0.1) 0 ($tz * -0.1) -n ($ribbonName + "RbbnEp02_jc") ;
+joint -e -zso -oj xyz -sao yup ($ribbonName + "RbbnEp01_jc");
+
+//PARENT THE CONTROL JOINTS APPROPRIATLY---
+parent -relative ($ribbonName + "RbbnSp01_jc") $spLocAim[0];
+parent -relative ($ribbonName + "RbbnMp01_jc") $mpLocAim[0];
+parent -relative ($ribbonName + "RbbnEp01_jc") $epLocAim[0];
+
+//APPLY THE AIM CONSTRINTS---
+int $aTz = 0;
+if ($VVal > $UVal)
+{
+$aTz = 1;
+};
+
+int $aTx = 0;
+if ($UVal > $VVal)
+{
+$aTx = 1;
+};
+
+//FOR MIDDLE POINT---
+select -r ($ribbonName + "RbbnSp01_pos");
+select -add ($ribbonName + "RbbnMp01_aim");
+aimConstraint -offset 0 0 0 -weight 1 -aimVector ($aTx * -1) 0 ($aTz * -1) -upVector 0 1 0 -worldUpType "object" -worldUpObject ($ribbonName + "RbbnMp01_up");
+
+//FOR START POINT---
+select -r ($ribbonName + "RbbnMp01_jc");
+select -add ($ribbonName + "RbbnSp01_aim");
+aimConstraint -offset 0 0 0 -weight 1 -aimVector $aTx 0 $aTz -upVector 0 1 0 -worldUpType "object" -worldUpObject ($ribbonName + "RbbnSp01_up");
+
+//FOR END POINT---
+select -r ($ribbonName + "RbbnMp01_jc");
+select -add ($ribbonName + "RbbnEp01_aim");
+aimConstraint -offset 0 0 0 -weight 1 -aimVector ($aTx * -1) 0 ($aTz * -1) -upVector 0 1 0 -worldUpType "object" -worldUpObject ($ribbonName + "RbbnEp01_up");
+
+//APPLY SKINCLUSTER---
+select -cl;
+select -r ($ribbonName + "RbbnSp01_jc");
+select -add ($ribbonName + "RbbnMp01_jc");
+select -add ($ribbonName + "RbbnEp01_jc");
+select -add ($ribbonName + "Rbbn01_geo");
+
+newSkinCluster "-toSelectedBones -ignoreHierarchy -mi 3 -dr 4 -rui true";
+
+//CLEAN UP---
+delete spCltrHandle;
+delete epCltrHandle;
+
+//GROUP EVERYTHING TOGETHER---
+select -r ($ribbonName + "Rbbn01_geo");
+if ($ribbonOptionVal == 1)
+{
+select -add ($ribbonName + "Rbbn01_fol_grp");
+}
+else
+{
+select -add ($ribbonName + "Rbbn01_pos_grp");
+}
+select -add ($ribbonName + "RbbnSp01_pos");
+select -add ($ribbonName + "RbbnMp01_pos");
+select -add ($ribbonName + "RbbnEp01_pos");
+group -n ($ribbonName + "Rbbn01_grp");
+xform -os -piv 0 0 0;
+
+print "SRB - Ribbon v0.2 has sucessfully created a ribbon setup...\n";
+}
+//THE END---

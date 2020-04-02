@@ -1,0 +1,76 @@
+ // @2012 Andrey Belyaev
+// www.3drigging.com
+
+/*! ## Скрипт привязывает обьекты к пространству других обьектов  Версия 3.00 (20.06.12)
+> 1. При включении чекбокса "Use enum attribute"  созает одмн атрибут со списком целевых обьектров.
+> 2. При выключении чекбокса "Use enum attribute"  созает список целевых обьектров влияния.
+*/
+
+/*! ## Что нового:
+> 1.
+
+*/
+
+/*! ## Надо сделать:
+> 1.-
+*/
+
+
+  global proc an_SpaceMaker ()
+{
+    $win = "ikFkMix";
+    if (`window -exists $win`)
+        deleteUI $win;
+
+    window -t "Space Maker" -w 200 -h 40 $win;
+    columnLayout -adj true -co "both" 10 ;
+separator -st "none" -h 5;////////////////////////////////
+	 text -align "center" -l "Select the parent objects (first global spase)!";
+separator -h 5;////////////////////////////////
+     separator -st "none" -h 5;
+     checkBoxGrp -numberOfCheckBoxes 1  -label "Use enum attribute" -v1 1 CBG_atrType ;
+	 separator -st "none" -h 5;
+	 textFieldButtonGrp -label "Target object:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_Target;" TFBG_Target;
+	 textFieldButtonGrp -label "Controller:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_Ctrl;" TFBG_Ctrl;
+separator -st "none" -h 5;
+     checkBoxGrp -numberOfCheckBoxes 1  -label "Make script job" -v1 0 CBG_sj ;
+	separator   -h 6;
+	 radioButtonGrp -l "Type:" -nrb 3 -la3 "parent" "orient" "point" -sl 1 RBG_Tape;
+   separator -st "none" -h 10;////////////////////////////////
+		button -l "Make space" -c "do_SpaceMaker()";
+	 showWindow $win;
+}
+
+
+
+global proc do_SpaceMaker  ()
+{
+
+string $objects[] = `ls -sl`;
+
+string $target = `textFieldButtonGrp -q -tx TFBG_Target`;
+string $ctrl = `textFieldButtonGrp -q -tx TFBG_Ctrl`;
+int $tape = ( (`radioButtonGrp -q -sl  RBG_Tape`)-1);
+int $attrTape =`checkBoxGrp -q -value1 CBG_atrType` ;
+
+string $attr[];
+int $i=0;
+for ($each in $objects)
+    {
+    string  $newName[] =  `an_returnPfxTxtSfx ( $each) ` ;
+    $attr[$i]=$newName[1] ;
+    $i++;
+    }
+
+an_spaceMaker_v3_0 ($tape, $objects, $attr,  $target, $ctrl, $attrTape );
+
+if (`checkBoxGrp -q  -v1   CBG_sj`)
+        {
+         scriptJob  -e  "print \"Annoying Message!\\n\""  ;
+        }
+
+}
+
+

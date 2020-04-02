@@ -1,0 +1,81 @@
+
+
+
+global proc an_mixAttrebutes(string $ctObj, float $input[], float $output)
+{
+string $ctObj = "pCube1";
+addAttr   -ln "valueA" -dv 0    -keyable true  $ctObj;
+addAttr   -ln "valueB" -dv 0    -keyable true  $ctObj;
+addAttr   -ln "valueC" -dv 0    -keyable true  $ctObj;
+addAttr   -ln "valueD" -dv 0    -keyable true  $ctObj;
+
+string $input[] = { ($ctObj+".valueA"), ($ctObj+".valueB"), ($ctObj+".valueC"), ($ctObj+".valueD") };
+	addAttr   -ln "time" -dv 0 -min 0 -max 10  -keyable true  $ctObj ;
+	addAttr   -ln "posA" -dv 0  -min 0 -max 10  -keyable true  $ctObj;
+	addAttr   -ln "posB" -dv 3  -min 0 -max 10  -keyable true  $ctObj;
+	addAttr   -ln "posC" -dv 7  -min 0 -max 10  -keyable true  $ctObj;
+	addAttr   -ln "posD" -dv 10 -min 0 -max 10  -keyable true  $ctObj;
+
+
+string $setRange = `createNode -name ($ctObj+"setRangeAB#")  "setRange"`; //нода заган€юща€ значени€ поз в рамки от 0 до 1
+		connectAttr   ($ctObj+".posA")  ($setRange+".oldMinX")  ;
+		connectAttr   ($ctObj+".posB")  ($setRange+".oldMaxX")  ;
+		connectAttr   ($ctObj+".posB")  ($setRange+".oldMinY")  ;
+		connectAttr   ($ctObj+".posC")  ($setRange+".oldMaxY")  ;
+		connectAttr   ($ctObj+".posC")  ($setRange+".oldMinZ")  ;
+		connectAttr   ($ctObj+".posD")  ($setRange+".oldMaxZ")  ;
+		setAttr ($setRange+".maxX") 1;
+		setAttr ($setRange+".maxY") 1;
+		setAttr ($setRange+".maxZ") 1;
+		connectAttr   ($ctObj+".time")  ($setRange+".valueX")  ;
+		connectAttr   ($ctObj+".time")  ($setRange+".valueY")  ;
+		connectAttr   ($ctObj+".time")  ($setRange+".valueZ")  ;
+string $blendNodaAB = `createNode -name ($ctObj+"blendAB#")  "blendTwoAttr"`;    //создаем бленд ноды
+		connectAttr -f ($setRange+".outValueX") ($blendNodaAB+".attributesBlender") ;
+		connectAttr -f $input[0] ($blendNodaAB + ".input[0]");
+		connectAttr -f $input[1] ($blendNodaAB + ".input[1]");
+
+string $blendNodaCD = `createNode -name ($ctObj+"blendCD#")  "blendTwoAttr"`;
+		connectAttr -f ($setRange+".outValueZ") ($blendNodaCD+".attributesBlender") ;
+        connectAttr -f $input[2] ($blendNodaCD + ".input[0]");
+ 		connectAttr -f $input[3] ($blendNodaCD + ".input[1]");
+
+string $blendNodaBC = `createNode -name ($ctObj+"blendBC#")  "blendTwoAttr"`;
+		connectAttr -f ($blendNodaAB + ".output")   ($blendNodaBC + ".input[0]");
+		connectAttr -f ($blendNodaCD + ".output")   ($blendNodaBC + ".input[1]");
+        connectAttr -f ($setRange+".outValueY") ($blendNodaBC+".attributesBlender") ;
+}
+
+
+
+
+
+getAttr "pCube1setRangeAB2.outValueX"  ;
+getAttr "pCube1setRangeAB2.outValueY"  ;
+
+
+
+
+
+
+
+
+
+
+global proc an_mix3attr(string $objAttr[], string $targtAttr,  string $mixAttr, string $Nams )
+	// миксует два векторных атрибута.
+{   // обьекты и арриб.    миксуемый обьект    управл. аттр.
+
+
+string $blendNoda = `createNode -name $Nams  "blendColors"`;  // микс ик и блокировки локт€
+	connectAttr -f $mixAttr ($blendNoda+".blender") ;
+	connectAttr -f $objAttr[0]  ($blendNoda+".color2");
+	connectAttr -f $objAttr[1]  ($blendNoda+".color1");
+	connectAttr -f ($blendNoda+".output")  $targtAttr ;
+
+/*string $blend = `createNode -name $Nams "blendTwoAttr"`;
+	connectAttr  $mixAttr  ($blend+".attributesBlender");
+	connectAttr  $objAttr[0] ($blend+".input[0]");
+	connectAttr  $objAttr[1] ($blend+".input[1]");
+	connectAttr -f ($blend+".output") $targtAttr ;*/
+}

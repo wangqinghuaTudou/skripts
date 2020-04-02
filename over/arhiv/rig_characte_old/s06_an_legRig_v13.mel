@@ -1,0 +1,749 @@
+
+/*! ## Скрипт создает риг для ног персонажа.  Версия 13 (19.10.12)
+> 1. Ориентация должна быть для всех косточек левой ноги Z на X позитив.
+*/
+
+/*! ## Что нового:
+> 1.Добавил возможность выбора между двумя реверс системами - abAutoRig/Дж. Шлейфер AFR
+> 2.Встроил хелп
+> 3.Система удаления рига
+> 4.Новая система реверс атрибутов.
+> 5.Переместил точку вращения твист фут на место сгиба.
+> 6.Добавил установку префугла
+> 7.Добавил включение и отключение режима софт ик.
+
+*/
+/*! ##
+>_________________________________________________________________________________
+>©2012 Andrey Belyaev        www.3drigging.com
+*/
+
+      global proc s06_an_legRig_v13()
+{
+    $win = "an_leg_Leg_win";
+    if (`window -exists $win`)
+deleteUI $win;
+window -t "Leg rigging tools.v13" -w 460 -h 200 -s true -rtf true -menuBar true $win;
+menu -label "File" -tearOff true;
+    		menuItem -label "Load L_leg preset" -command "an_loadLegPreset(\"Left\")";
+    		menuItem -label "Load R_leg preset" -command "an_loadLegPreset(\"Right\")" ;
+			menuItem -label "Add Heel Rise" -command "pvAddHeelRise()" ;
+columnLayout -adj true -co "both" 10 ;
+separator   -h 6;
+
+	 radioButtonGrp -l "Side:" -nrb 2 -la2 "Left" "Right" -sl 1 legRBG_side;
+separator -st "none" -h 6;
+	 textFieldButtonGrp -l "Leg joint:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] legTFBG_LegJnt;" legTFBG_LegJnt;
+	 textFieldButtonGrp -l "Revers joint:" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] legTFBG_ReversJnt;" legTFBG_ReversJnt;
+separator   -h 6;
+  	 textFieldButtonGrp -l "Switch_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_legSwitchCtrl;" TFBG_legSwitchCtrl;
+	 textFieldButtonGrp -l "Parent_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_legParentCtrl;" TFBG_legParentCtrl;
+	 textFieldButtonGrp -l "Body_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_legBodyCtrl;" TFBG_legBodyCtrl;
+	 textFieldButtonGrp -l "Hips_controller :" -bl "Assign"
+			-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_legHipsCtrl;" TFBG_legHipsCtrl;
+	 //textFieldButtonGrp -l "Pelvis_controller :" -bl "Assign"
+			//-bc	"string $sel[] = `ls -sl`;textFieldButtonGrp -e -tx $sel[0] TFBG_legPelvisCtrl;" TFBG_legPelvisCtrl;
+
+separator -st "none" -h 6;
+	radioButtonGrp -l "Revers type:" -nrb 2 -la2 "abRigSystem" "JS system" -sl 1 legRBG_type;
+separator -st "none" -h 6;
+			rowColumnLayout -nc 3   -cw 1 140 -cw 2 140 -cw 3 140 ;
+			 button   -l  "Help" -c "an_help( \"s06_an_legRig_v12.mel\");";
+			 button   -l "Delete leg rig" -c "an_leg_deleteLegRig()";
+			 button   -l "Make leg rig" -c "an_leg_dooLegRig()";
+			setParent ..;
+showWindow $win;
+}
+
+global proc string[] an_legFldNames ( )
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+return  { (`an_legSide`+"legRig"+$Sfx[5]), (`an_legSide`+"fkLegRig"+$Sfx[5]),
+		(`an_legSide`+"ikLegRig"+$Sfx[5])};
+}
+
+
+global proc string[] an_legCtNames ( )
+{
+string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+string $listNams[] = `an_NamesList_v02 -ctrl`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+return {(`an_legSide`+$listNams[16]+$Sfx[9]),    //IK_Knee
+  		(`an_legSide`+$listNams[17]+$Sfx[9]),   // IK_Foot
+		(`an_legSide`+$listNams[18]+$Sfx[9]),	//FK_UpLeg
+		(`an_legSide`+$listNams[19]+$Sfx[9]),	//FK_Leg
+		(`an_legSide`+$listNams[20]+$Sfx[9])  };  //CT_L_FK_Foot
+}
+
+
+
+global proc  an_leg_dooLegRig ( )
+{
+string $FdNams []=     an_leg_doLegsFolders( ); //создаем папки
+string $footCtrl[];
+if ((`radioButtonGrp -q -sl legRBG_type`)==1)
+			{$footCtrl =   an_leg_ABreversIKRig ( ) ;  // реверс риггинг дж. шлейфера
+			}
+else
+			{$footCtrl =   an_leg_JSreversIKRig ( ) ;  // реверс риггинг дж. шлейфера
+			}
+
+string $kneeCtrl[]=    an_leg_ikKneeCtrl ( $footCtrl[2]) ; //коленный контроллер.
+string $ikJnt[]=       an_leg_ikRig   ( $kneeCtrl[2], $footCtrl[2] ) ;  //ик риг.
+string $fkJnt[]=  an_leg_fkRig_v02 ( ); //фк риг.
+an_leg_IkFkMix (  $fkJnt, $ikJnt);
+for ($each in `an_legCtNames`) an_setJntRotOrder ($each);// выставляем ротейшн ордер...
+for ($each in `an_legCtNames`) pvAddLimbAttr ($each, (`an_legSide`+"leg"));// добовляет аттрибут лимб...
+an_doLegMatchObjects (`an_legCtNames`, $ikJnt, $fkJnt);
+an_AddLengthAttr ($ikJnt, $fkJnt);
+an_ikFkLegServiceProc ( $ikJnt, `an_legCtNames` );
+ }
+
+
+
+global proc   _________RigProc_________() {}
+
+
+
+global proc string[] an_leg_doLegsFolders () //создаем папки
+{
+string $ParentCtrl = `textFieldGrp -q -text TFBG_legParentCtrl`;
+string $switch = `textFieldGrp -q -text TFBG_legSwitchCtrl`;
+string $FdNams[] = `an_legFldNames`;
+
+string $IKgrp = ` group -em -n $FdNams[2] `;
+string $FKgrp = ` group -em -n $FdNams[1] `;
+string $General_grp = ` group  -n $FdNams[0]   $IKgrp $FKgrp `;
+parent $General_grp $ParentCtrl;
+
+an_connector (($switch+"."+`an_legSide`+"legCtrls"), $General_grp+".v", 1 );
+
+return {$General_grp, $FKgrp, $IKgrp  };
+}
+
+global proc string[] an_leg_ABreversIKRig ( )
+{
+string $CtNams[] = `an_legCtNames`;
+string $FdNams[] = `an_legFldNames`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $switch = `textFieldGrp -q -text TFBG_legSwitchCtrl`;
+string $reversJnts[] = an_childCapture (`textFieldButtonGrp -q -tx legTFBG_ReversJnt`);
+string $ParentCtrl = `textFieldGrp -q -text TFBG_legParentCtrl`;
+string $bodyCtrl = `textFieldGrp -q -text TFBG_legBodyCtrl`;
+//string $pelvisCtrl = `textFieldGrp -q -text TFBG_legPelvisCtrl`;
+string $hipsCtrl = `textFieldGrp -q -text TFBG_legHipsCtrl`;
+string $lsNams[] = `an_NamesList_v02 -ctrl`;
+
+an_saveOriginalValues($reversJnts);
+setAttr ($reversJnts[0]+".rotateOrder") 5;
+string $tmp = an_Ctrl ("-ikFoot", $CtNams[1]);
+string $footCtrl[] = an_ctGrp ($tmp);
+
+ an_ctColor ($footCtrl[2], $switch, `radioButtonGrp -q -sl legRBG_side`) ;
+
+string $tmpM[] = `pointConstraint $reversJnts[6] $footCtrl[0]`; delete $tmpM[0];    // размещаем группы с контроллером
+string $tmpM[] = `aimConstraint  -aim 0 0 1 -u 0 1 0   -skip x -skip z $reversJnts[4] $footCtrl[0]`; delete $tmpM[0];
+
+string $JntGrp = `group  -n  (an_pfxMinus($CtNams[1])+$Sfx[3]+$Sfx[5]) $reversJnts[0]` ;
+string $MineGrp = `group -n (an_pfxMinus($CtNams[1])+"_legRevers"+$Sfx[5]) $JntGrp $footCtrl[0] ` ;
+parentConstraint -maintainOffset  $footCtrl[2] $JntGrp;
+
+string $attr[]=  {"footAttributes", "footRoll", "footBreak", "ballRise",  "toeRise", "heelRise", "toeTwist", "ballTwist", "heelTwist", "side", "clenchFoot"};
+
+
+int $caunt;
+for ($caunt=0; $caunt<11; $caunt++)
+ 		{
+		addAttr   -ln $attr[$caunt] -dv 0   -keyable true  $footCtrl[2] ;
+		if ($caunt==0) {setAttr -lock true ($footCtrl[2]+"."+$attr[$caunt]);}
+		}
+
+string $exprName = (an_pfxMinus($CtNams[1])+"_exp");
+expression -n $exprName   -s    ( "$roll = "+$footCtrl[2]+".footRoll;"          + "\n"+
+"$Break = "+$footCtrl[2]+".footBreak;"                               + "\n"+
+"$ballRaise = "+$footCtrl[2]+".ballRise;"                           + "\n"+
+"$toeRise = "+$footCtrl[2]+".toeRise;"                             + "\n"+
+"$toeTwist = "+$footCtrl[2]+".toeTwist;"                             + "\n"+
+"$side = "+$footCtrl[2]+".side;"                                     + "\n"+
+"$ballTwist = "+$footCtrl[2]+".ballTwist;"                           + "\n"+
+"$heelTwist = "+$footCtrl[2]+".heelTwist;"                           + "\n"+
+"$heelRise = "+$footCtrl[2]+".heelRise;"                            + "\n"+
+
+$reversJnts[5]+".rotateZ = (clamp (0, $Break, $roll))+$ballRaise;"                     + "\n"+
+$reversJnts[4]+".rotateZ =  (clamp (0, 90, ($roll-$Break)))+$toeRise ;"               + "\n"+
+$reversJnts[4]+".rotateY = $toeTwist ;"                                                + "\n"+
+$reversJnts[3]+".rotateY = $ballTwist ;"                                               + "\n"+
+$reversJnts[2]+".rotateZ = (min($roll,0)*-1)+$heelRise;"                                           + "\n"+
+$reversJnts[0]+".rotateZ = min($side,0)*-1;"                                                                                + "\n"+
+$reversJnts[1]+".rotateZ = max(0,$side);"                                                                                  + "\n"+
+$reversJnts[2]+".rotateY = $heelTwist;"                          ) ;
+
+string $objects[]={$ParentCtrl, $bodyCtrl,   $hipsCtrl  };//делаем спейсы
+string $attr[]= {$lsNams[1], $lsNams[3],  $lsNams[28]};
+an_spaceMaker_v2_0  (0,$objects, $attr, $footCtrl[0], $footCtrl[2] );
+
+an_connector (($switch+"."+`an_legSide`+"legIkFkSwitch"), ($footCtrl[2]+".v"), 1 );
+an_hideAttr  ($footCtrl[2], {"sx", "sy", "sz", "v"});
+parent $MineGrp $FdNams[2];
+an_connectRigVis ($FdNams[0],  {$reversJnts[0]});
+an_delSys ({$exprName } , $FdNams[0]);
+return $footCtrl;
+}
+
+
+global proc string[] an_leg_JSreversIKRig ( )
+{
+string $CtNams[] = `an_legCtNames`;
+string $FdNams[] = `an_legFldNames`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $switch = `textFieldGrp -q -text TFBG_legSwitchCtrl`;
+string $reversJnts[] = an_childCapture (`textFieldButtonGrp -q -tx legTFBG_ReversJnt`);
+setAttr ($reversJnts[0]+".rotateOrder") 5;
+
+an_saveOriginalValues($reversJnts);
+
+string $tmp = an_Ctrl ("-ikFoot", $CtNams[1]);
+string $footCtrl[] = an_ctGrp ($tmp);
+
+ an_ctColor ($footCtrl[2], $switch, `radioButtonGrp -q -sl legRBG_side`) ;
+
+string $tmpM[] = `pointConstraint $reversJnts[6] $footCtrl[0]`; delete $tmpM[0];    // размещаем группы с контроллером
+string $tmpM[] = `aimConstraint  -aim 0 0 1 -u 0 1 0   -skip x -skip z $reversJnts[4] $footCtrl[0]`; delete $tmpM[0];
+
+string $JntGrp = `group  -n  (an_pfxMinus($CtNams[1])+$Sfx[3]+$Sfx[5]) $reversJnts[0]` ;
+string $MineGrp = `group -n (an_pfxMinus($CtNams[1])+"_legRevers"+$Sfx[5]) $JntGrp $footCtrl[0] ` ;
+parentConstraint -maintainOffset  $footCtrl[2] $JntGrp;
+
+
+string $attr[]=  {"footAttributes","roll","toeLift","toeStraight", "lean", "side",  "toeSpin", "footSpin", "clenchFoot"};
+int $caunt;
+for ($caunt=0; $caunt<9; $caunt++)
+ 		{
+		addAttr   -ln $attr[$caunt] -dv 0   -keyable true  $footCtrl[2] ;
+		if ($caunt==0) {setAttr -lock true ($footCtrl[2]+"."+$attr[$caunt]);}
+		}
+
+string $exprName = (an_pfxMinus($CtNams[1])+"_exp");
+expression -n $exprName   -s    ( "$roll = "+$footCtrl[2]+".roll;"          + "\n"+
+"$toeLift = "+$footCtrl[2]+".toeLift;"                       + "\n"+
+"$toeStraight = "+$footCtrl[2]+".toeStraight;"               + "\n"+
+"$lean = "+$footCtrl[2]+".lean;"                             + "\n"+
+"$side = "+$footCtrl[2]+".side;"                             + "\n"+
+"$spin = "+$footCtrl[2]+".toeSpin;"                          + "\n"+
+"$footSpin = "+$footCtrl[2]+".footSpin;"                         + "\n"+
+
+$reversJnts[2]+".rotateZ = min($roll,0)*-1;"                 + "\n"+
+$reversJnts[5]+".rotateZ = (linstep(0,$toeLift,$roll)) * (1-(linstep($toeLift,$toeStraight,$roll))) * $roll;"               + "\n"+
+$reversJnts[4]+".rotateZ = linstep($toeLift, $toeStraight, $roll) * $roll;"                                                 + "\n"+
+$reversJnts[5]+".rotateY = $lean;"                                                                                          + "\n"+
+$reversJnts[0]+".rotateZ = min($side,0)*-1;"                                                                                + "\n"+
+$reversJnts[1]+".rotateZ = max(0,$side);"                                                                                  + "\n"+
+$reversJnts[3]+".rotateY = $spin;"                    																	   + "\n"+
+$reversJnts[2]+".rotateY = $footSpin;"                         ) ;
+
+
+
+an_connector (($switch+"."+`an_legSide`+"legIkFkSwitch"), ($footCtrl[2]+".v"), 1 );
+an_hideAttr  ($footCtrl[2], {"sx", "sy", "sz", "v"});
+parent $MineGrp $FdNams[2];
+an_connectRigVis ($FdNams[0],  {$reversJnts[0]});
+an_delSys ({$exprName } , $FdNams[0]);
+return $footCtrl;
+}
+
+
+ global proc string[] an_leg_ikKneeCtrl (string $footCtrl )
+{
+string $CtNams[] = `an_legCtNames`;
+string $FdNams[] = `an_legFldNames`;
+string $Sfx[] = `an_NamesList_v02 -Sfx`;
+string $switch = `textFieldGrp -q -text TFBG_legSwitchCtrl`;
+string $ParentCtrl =  `textFieldGrp -q -text TFBG_legParentCtrl`;
+string $Jnts[] = an_childCapture (`textFieldGrp -q -text legTFBG_LegJnt`);
+string $listNams[] = `an_NamesList_v02 -ctrl`;
+
+an_saveOriginalValues($Jnts);
+setAttr ($Jnts[1]+".preferredAngleZ") 60;//устанавливаем префангл.
+
+string $Input [] = {  $CtNams[0], $switch, $Jnts[1], $FdNams[2] }; //  {  "Knee_CT", "switch_CT", "l_foreArm_jnt", "pivotOffset_CT" };
+float  $side = 1;
+if  ((`radioButtonGrp -q -sl legRBG_side`)== 1) $side=1; else $side=2;
+float $flInput [] = {0.0, $side}; //рука-1 нога-0,      сторона 1- левая 2- правая
+string $spaceObjects[]= {$ParentCtrl, $CtNams[1]};
+string $spaceAttr[]= {"general", "foot" };
+
+string $KneeCtrl[] = an_polVectorCtrl ( $Input ,  $flInput,  $spaceObjects, $spaceAttr);
+
+an_delSys ({$KneeCtrl[0], $FdNams[2] } , $FdNams[0]);
+return $KneeCtrl ;
+
+ }
+
+
+
+global proc string[] an_leg_ikRig ( string $kneeCtrl, string $footCtrl )
+{
+string $CtNams[] = `an_legCtNames`;
+string $FdNams[] = `an_legFldNames`;
+string $ParentCtrl =  `textFieldGrp -q -text TFBG_legParentCtrl`;
+string $switch = `textFieldGrp -q -text TFBG_legSwitchCtrl`;
+string $jnt = `textFieldButtonGrp -q -tx legTFBG_LegJnt`;
+string $revJnt[] = an_childCapture (`textFieldButtonGrp -q -tx legTFBG_ReversJnt`);
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+
+													/////////////////////дублируем косточки....
+string $ikJnt[] = an_duplicatAndRename($jnt, "_Ik"+$Sfx[3]);  // создаем ик цепочку
+parent -w $ikJnt[0];
+string $JntGrp = `group -n ( an_pfxMinus($CtNams[0])+"_Joint"+$Sfx[5]) $ikJnt[0]` ;
+parent $JntGrp $FdNams[2];
+
+string $hips[] = ` listRelatives -parent $jnt`;
+parentConstraint -mo $hips $JntGrp;
+
+string $IkHandl[] =	an_soft2JntIK ( $ikJnt[0]  , $kneeCtrl ); //стретч ик таргет
+	addAttr   -ln "lock_elbow" -dv 0   -keyable true  $kneeCtrl ;  //добовляем лок аттр на локоть
+	setAttr -lock true ($kneeCtrl+".lock_elbow");
+	addAttr   -ln "lock" -dv 0 -min 0 -max 1  -keyable true  $kneeCtrl ;
+    connectAttr  ($kneeCtrl+".lock") ($IkHandl[0]+".lock");
+
+	addAttr   -ln "FingersBend"    -keyable true  $footCtrl ;
+
+	addAttr   -ln "additional" -dv 0   -keyable true  $footCtrl ;  //вспомогательные на икНогу.
+		setAttr -lock true ($footCtrl+".additional");
+   	addAttr   -ln "stretching" -dv 1 -min 0 -max 1  -keyable true  $footCtrl ;
+		connectAttr  ($footCtrl+".stretching") ($IkHandl[0]+".stretching");
+	addAttr   -ln "upLength" -dv 1 -min .01 -max 10  -keyable true  $footCtrl ;
+		connectAttr  ($footCtrl+".upLength") ($IkHandl[0]+".upLength");
+	addAttr   -ln "dwLength" -dv 1 -min .01 -max 10  -keyable true  $footCtrl ;
+		connectAttr  ($footCtrl+".dwLength") ($IkHandl[0]+".dwLength");
+	addAttr   -ln "softness" -dv 1 -min 0 -max 1  -keyable true  $footCtrl ;
+		connectAttr  ($footCtrl+".softness") ($IkHandl[0]+".softnes");
+	addAttr -ln "softIK"  -at "enum" -en "on:off" -keyable true $footCtrl;
+		connectAttr  ($footCtrl+".softIK") ($IkHandl[0]+".softIK");
+
+pointConstraint $revJnt[6] $IkHandl[0];     parent $IkHandl[1] $FdNams[2] ;   parent $IkHandl[0] $FdNams[2] ;
+
+string $toeIKGrp = `group -em -n ( an_pfxMinus($footCtrl)+"_Toe"+$Sfx[5]) `;                              //риг носка
+string $toeOfsetIKGrp = `group  -n ( an_pfxMinus($footCtrl)+"_Toe_Offset"+$Sfx[5]) `;
+$temp  = `parentConstraint $revJnt[5] $toeOfsetIKGrp`; delete $temp[0];
+
+string $ikHandleA []=`ikHandle -n ( an_pfxMinus($CtNams[0])+"_ToeA"+$Sfx[12]) -sol ikSCsolver -sj $ikJnt[2]  -ee $ikJnt[3] -shf off`;
+parent 	$ikHandleA[0]   $toeIKGrp; setAttr 	($ikHandleA[0]+".t") 0 0 0 ;
+
+string $clenchGrp = `group -em -n ( an_pfxMinus($footCtrl)+"_clench"+$Sfx[5]) `; //делаем клинч стопы
+$temp  = `parentConstraint $revJnt[5] $clenchGrp`; delete $temp[0];
+parent 	$ikHandleA[0] $clenchGrp;
+parent 	$clenchGrp   $toeIKGrp;
+connectAttr  ($footCtrl+".clenchFoot") ($clenchGrp+".rx");
+//connectAttr  ($footCtrl+".clenchFoot") ($ikHandleA[0]+".rx");
+
+string $ikHandleB []=`ikHandle -n ( an_pfxMinus($CtNams[0])+"_ToeB"+$Sfx[12]) -sol ikSCsolver -sj $ikJnt[3]  -ee $ikJnt[4] -shf off`;
+parent 	$ikHandleB[0] $toeIKGrp;
+parent 	$toeOfsetIKGrp $FdNams[2] ;
+connectAttr ($footCtrl+".FingersBend") ($toeIKGrp+".rz" );
+
+// создаем специальный аттрибут для настройки смещения закругленных носков
+addAttr   -ln "tzOfset"   -keyable 0 $footCtrl ;
+string $MtDv =`createNode -n ( an_pfxMinus($CtNams[0])+"MDV") "multiplyDivide"`;
+connectAttr -f ($footCtrl+".tzOfset")  ($MtDv+".input1X");
+connectAttr -f ($revJnt[4]+".rz")  ($MtDv+".input2X");
+connectAttr -f ($MtDv+".outputX")  ($revJnt[1]+".tz");
+
+parent   $toeOfsetIKGrp $revJnt[4];
+an_connectRigVis ($FdNams[0],  { $ikJnt[0],  $IkHandl[0], $toeOfsetIKGrp});
+an_delSys ({ $IkHandl[1], $toeOfsetIKGrp} , $FdNams[0]);
+
+return $ikJnt;
+}
+
+
+ global proc string[] an_leg_fkRig_v02 ( )
+{
+string $CtNams[] = `an_legCtNames`;
+string $FdNams[] = `an_legFldNames`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $ParentCtrl =  `textFieldGrp -q -text TFBG_legParentCtrl`;
+string $switch = `textFieldGrp -q -text TFBG_legSwitchCtrl`;
+
+string $fkJnt[] = an_duplicatAndRename(`textFieldButtonGrp -q -tx legTFBG_LegJnt`, ("Fk"+$Sfx[3]));
+string $parent[] = `listRelatives -p $fkJnt[0]`; //получаем кость рут.
+parent -w $fkJnt[0] ;
+																		//создаем контроллеры
+string $temp = an_Ctrl ("-fk", $CtNams[4]);					            	//стопа
+string $footCtrl[] = an_ctGrp ($temp);
+string $tmp[] = `parentConstraint $fkJnt[2]  $footCtrl[0]`; delete $tmp[0];
+parentConstraint $footCtrl[2] $fkJnt[2];
+	addAttr   -ln "FingersBend"  -dv 0   -keyable true  $footCtrl[2] ;
+	connectAttr    ($footCtrl[2]+".FingersBend") ($fkJnt[3]+".rz");
+
+string $temp = an_Ctrl ("-fk", $CtNams[3]); 						       //колено
+string $kneeCtrl[] = an_ctGrp ($temp);
+string $tmp[] = `parentConstraint $fkJnt[1]  $kneeCtrl[0]`; delete $tmp[0];
+parentConstraint  $kneeCtrl[2] $fkJnt[1] ;
+parent $footCtrl[0] $kneeCtrl[2];
+		addAttr   -ln "length" -dv 1  -min 0 -max 5  -keyable true  $kneeCtrl[2] ;
+		string $lengthMult = `createNode   "multiplyDivide"`;
+		setAttr ($lengthMult+".input2X") (`getAttr ($fkJnt[2]+".tx")`);
+		connectAttr -f ($kneeCtrl[2]+".length") ($lengthMult+".input1X");
+	    connectAttr -f ($lengthMult+".outputX")   ($footCtrl[0]+".tx");
+
+string $temp = an_Ctrl ("-fk", $CtNams[2]);									//бедро
+string $legCtrl[] = an_ctGrp ($temp);
+string $tmp[] = `parentConstraint $fkJnt[0]  $legCtrl[0]`; delete $tmp[0];
+parentConstraint  $legCtrl[2] $fkJnt[0]  ;
+parent $kneeCtrl[0] $legCtrl[2];
+		addAttr   -ln "length" -dv 1  -min 0 -max 5  -keyable true  $legCtrl[2] ;
+		string $lengthMult = `createNode   "multiplyDivide"`;
+		setAttr ($lengthMult+".input2X") (`getAttr ($fkJnt[1]+".tx")`);
+		connectAttr -f ($legCtrl[2]+".length") ($lengthMult+".input1X");
+	    connectAttr -f ($lengthMult+".outputX")   ($kneeCtrl[0]+".tx");
+
+
+string $bodyCt   = `textFieldButtonGrp -q -tx TFBG_legBodyCtrl`;
+
+string $objects[]={$ParentCtrl, $bodyCt  };  //создаем спейсы
+
+an_spaceMaker_v3_0  (1,$objects, {"world", "body"}, $legCtrl[0], $legCtrl[2], 1 );
+
+
+an_ctColor ($legCtrl[2], $switch, `radioButtonGrp -q -sl legRBG_side`) ;///коннектим цвет
+an_ctColor ($kneeCtrl[2], $switch, `radioButtonGrp -q -sl legRBG_side`) ;//
+an_ctColor ($footCtrl[2], $switch, `radioButtonGrp -q -sl legRBG_side`) ;//
+an_connector (($switch+"."+`an_legSide`+"legIkFkSwitch"), $legCtrl[2]+".v", -1 );
+an_hideAttr  ($footCtrl[2], {"tx","ty","tz",   "sx", "sy", "sz", "v"});
+an_hideAttr  ($kneeCtrl[2], {"tx","ty","tz",   "rx","ry",  "sx", "sy", "sz", "v"});
+an_hideAttr  ($legCtrl[2], {"tx","ty","tz", "sx", "sy", "sz", "v"});
+
+string $JntGrp = `group -n ( an_pfxMinus($CtNams[0])+"_fkJnt"+$Sfx[5]) $fkJnt[0] $legCtrl[0]`; //группа с костями
+	parent $JntGrp $FdNams[1];
+	parentConstraint -mo $parent[0] $JntGrp  ;
+
+an_connectRigVis ($FdNams[0],  {$fkJnt[0]});
+an_delSys ({$fkJnt[0] } , $FdNams[0]);
+
+return {$fkJnt[0], $fkJnt[1], $fkJnt[2], $fkJnt[3] } ;
+
+}
+
+
+global proc  an_leg_IkFkMix( string $fkJnt[], string $ikJnt[])
+{
+
+string $Jnt[]	= an_childCapture (`textFieldButtonGrp -q -tx legTFBG_LegJnt`);
+string $switch = `textFieldGrp -q -text TFBG_legSwitchCtrl`;
+
+an_leg_mix3attr({($fkJnt[0]+".r"), ($ikJnt[0]+".r")}, ($Jnt[0]+".r"), ($switch+"."+`an_legSide`+"legIkFkSwitch"), ($ikJnt[0]+"nn") );
+
+an_leg_mix3attr({($fkJnt[1]+".r"), ($ikJnt[1]+".r")}, ($Jnt[1]+".r"), ($switch+"."+`an_legSide`+"legIkFkSwitch"), ($ikJnt[1]+"nn") );
+an_leg_mix3attr({($fkJnt[1]+".t"), ($ikJnt[1]+".t")}, ($Jnt[1]+".t"), ($switch+"."+`an_legSide`+"legIkFkSwitch"), ($ikJnt[1]+"nt") );
+
+an_leg_mix3attr({($fkJnt[2]+".r"), ($ikJnt[2]+".r")}, ($Jnt[2]+".r"), ($switch+"."+`an_legSide`+"legIkFkSwitch"), ($ikJnt[2]+"nn") );
+an_leg_mix3attr({($fkJnt[2]+".t"), ($ikJnt[2]+".t")}, ($Jnt[2]+".t"), ($switch+"."+`an_legSide`+"legIkFkSwitch"), ($ikJnt[2]+"nt") );
+
+an_leg_mix3attr({($fkJnt[3]+".r"), ($ikJnt[3]+".r")}, ($Jnt[3]+".r"), ($switch+"."+`an_legSide`+"legIkFkSwitch"), ($ikJnt[3]+"nn") );
+an_leg_mix3attr({($fkJnt[3]+".t"), ($ikJnt[3]+".t")}, ($Jnt[3]+".t"), ($switch+"."+`an_legSide`+"legIkFkSwitch"), ($ikJnt[3]+"nt") );
+
+an_delSys ({($ikJnt[0]+"nn"), ($ikJnt[1]+"nn"), ($ikJnt[1]+"nt") , ($ikJnt[2]+"nn"), ($ikJnt[2]+"nt"), ($ikJnt[3]+"nn"), ($ikJnt[3]+"nt")} , $fkJnt[0]);
+}
+
+
+
+
+global proc an_doLegMatchObjects(string $CtNams[], string $ikJnt[], string $fkJnt[])
+{
+string $machObj[];
+
+$machObj[0] = an_matchObject($CtNams[0], $fkJnt[0]);  //kneeIk
+$machObj[1] = an_matchObject($CtNams[1], $fkJnt[2]);  //l_footIk
+
+$machObj[2] = an_matchObject($CtNams[2], $ikJnt[0]);  //Leg
+$machObj[3] = an_matchObject($CtNams[3], $ikJnt[1]);  //knee
+$machObj[4] = an_matchObject($CtNams[4], $ikJnt[2]);  //foot
+//print $fkJnt[2] ;
+print $machObj ;
+}
+
+/*
+
+an_legCtNames
+
+
+print $ikJnt[3] ;
+
+
+global proc an_doLegMatchObjects(string $CtNams[], string $ikJnt[], string $fkJnt[])
+{
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+string $machObj[];
+
+$machObj[0] = `group -em  -n ( an_pfxMinus($CtNams[0])+$Sfx[10])`;
+string $temp[] = `parentConstraint $CtNams[0] $machObj[0]`; delete $temp[0];
+
+$machObj[1] = `group -em  -n ( an_pfxMinus($CtNams[1])+$Sfx[10])`;
+string $temp[] = `parentConstraint $CtNams[1] $machObj[1]`; delete $temp[0];
+
+string $dupl [] =  an_duplicatAndRename( $fkJnt[0], $Sfx[10]) ;
+
+for ($each in {$dupl[0], $dupl[1], $dupl[2]})
+	   {
+		for ($attr in {".tx", ".ty", ".tz", ".rx", ".ry", ".rz", ".sx", ".sy", ".sz" }) setAttr -k  true  -lock false ($each+$attr) ;
+		}
+
+parent $machObj[0] $fkJnt[1]; //  kneeIk
+parent $machObj[1] $fkJnt[2]; //  footIk
+
+parent $dupl[2] $ikJnt[2]; //   foot
+parent $dupl[1] $ikJnt[1]; //   knee
+parent $dupl[0] $ikJnt[0]; //   upLeg
+};
+*/
+
+
+global proc an_AddLengthAttr ( string $ikJnt[], string $fkJnt[])
+{
+int $i;
+for ($i= 0; $i<3; $i++ )  pvAddLengthAttr ($ikJnt[$i]);
+
+for ($i= 0; $i<3; $i++ )  pvAddLengthAttr ($fkJnt[$i]);
+}
+
+
+
+global proc   _________WorkProc___________() {}//
+
+
+global proc an_leg_mix3attr(string $objAttr[], string $targtAttr,  string $mixAttr, string $Nams )
+{                     // обьекты и арриб.    миксуемый обьект    управл. аттр.
+string $blendNoda = `createNode -name $Nams  "blendColors"`;
+connectAttr -f $mixAttr ($blendNoda+".blender") ;
+connectAttr -f $objAttr[0]  ($blendNoda+".color2");
+connectAttr -f $objAttr[1]  ($blendNoda+".color1");
+connectAttr -f ($blendNoda+".output")  $targtAttr ;
+}
+
+ global proc an_loadLegPreset (string $side)
+{
+string $jntNams[] = `an_NamesList_v02 -bones`;
+string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+string $ctNams[] = `an_NamesList_v02 -ctrl`;
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+
+if (`gmatch $side "Left"`)
+		{
+		radioButtonGrp -e -sl 1 legRBG_side;
+		$side=$Pfx[0];
+		}
+
+else
+		{
+		radioButtonGrp -e -sl 2 legRBG_side;
+		$side=$Pfx[1];
+		}
+
+textFieldButtonGrp -e -tx ($side+$jntNams[8]+$Sfx[3]) legTFBG_LegJnt;
+textFieldButtonGrp -e -tx ($side+$jntNams[19]+"1"+$Sfx[3]) legTFBG_ReversJnt;
+textFieldButtonGrp -e -tx ($ctNams[0]+$Sfx[9]) TFBG_legSwitchCtrl;
+textFieldButtonGrp -e -tx ($ctNams[2]+$Sfx[9]) TFBG_legParentCtrl;
+textFieldButtonGrp -e -tx ($ctNams[3]+$Sfx[9]) TFBG_legBodyCtrl ;
+
+//textFieldButtonGrp -e -tx ($ctNams[4]+$Sfx[9]) TFBG_legPelvisCtrl ;
+textFieldButtonGrp -e -tx ($ctNams[28]+$Sfx[9]) TFBG_legHipsCtrl ;
+
+}
+
+
+
+
+global proc an_spaceMakerForKnee_v2_0 ( string $objects[], string $attr[], string $target, string $ctrl )
+{
+ //  спейс мейкер который поинт констрейнит только по иксу и зету.
+
+string $Sfx[] = `an_NamesList_v02 -Sfx` ;
+																									// группа со спейсами для дженерал контролса
+string $mineGrp = (an_sfxMinus($objects[0])+"Spaces"+$Sfx[5]); // если нет группы спейс создаем ее
+ if (!`objExists $mineGrp`)
+		 { group -em -n (an_sfxMinus($objects[0])+"Spaces"+ $Sfx[5]);
+		   parent $mineGrp $objects[0];
+		   for ($each in {".t",".r"} ) setAttr ($mineGrp+$each) 0 0 0 ;
+		 }
+
+string $conGenGrp = `group -em  -n (an_sfxMinus($target)+"_"+an_sfxMinus($objects[0])+$Sfx[21])`;                     // создаем спейс группу дженерал
+parent $conGenGrp $mineGrp ;
+string $tmp[]= `parentConstraint  $target $conGenGrp`; delete $tmp[0];
+
+string $conFootGrp = `group -em  -n (an_sfxMinus($target)+"_"+an_sfxMinus($objects[1])+$Sfx[21])`;                     // создаем спейс группу фут
+
+string $conOffsGrp = `group -em  -n (an_sfxMinus($target)+"_Offset"+an_sfxMinus($objects[1])+$Sfx[21])`;
+string $tmp[]= `pointConstraint  $objects[1] $conOffsGrp`; delete $tmp[0];
+string $tmp[]= `parentConstraint  $target $conFootGrp`; delete $tmp[0];
+parent $conFootGrp $conOffsGrp ;
+parent $conOffsGrp $mineGrp ;
+orientConstraint  -skip x -skip z  $objects[1] $conOffsGrp;
+pointConstraint  $objects[1] $conOffsGrp;
+
+string $pConst[]= `parentConstraint $conGenGrp $conFootGrp $target  `;
+
+addAttr -ln "space"  -at "enum" -en "world:foot:" -keyable true $ctrl;
+
+setDrivenKeyframe -cd ($ctrl+".space") -dv 0  -v 1 ($pConst[0]+"."+$conGenGrp+"W0");
+setDrivenKeyframe -cd ($ctrl+".space") -dv 1  -v 0 ($pConst[0]+"."+$conGenGrp+"W0");
+setDrivenKeyframe -cd ($ctrl+".space") -dv 1  -v 1 ($pConst[0]+"."+$conFootGrp+"W1");
+setDrivenKeyframe -cd ($ctrl+".space") -dv 0  -v 0 ($pConst[0]+"."+$conFootGrp+"W1");
+
+an_delSys ({$conGenGrp, $conFootGrp, $conOffsGrp } , $target);
+}
+
+
+
+global proc pvAddLimbAttr (string $objName, string $limbName)
+{
+    if (!`attributeExists "limb" $objName`)
+    {
+        addAttr -dt "string" -ln "limb" $objName ;
+        setAttr -type "string" ($objName + ".limb") $limbName ;
+        setAttr -l 1 ($objName + ".limb") ;
+    }
+    else
+    {
+        setAttr -l 0 ($objName + ".limb") ;
+        setAttr -type "string" ($objName + ".limb") $limbName ;
+        setAttr -l 1 ($objName + ".limb") ;
+    }
+}
+
+
+
+
+global proc string an_legSide ()
+{
+string $Pfx[] = `an_NamesList_v02 -Pfx` ;
+ if ((`radioButtonGrp -q -sl legRBG_side`)==1) {return $Pfx[0];} else {return $Pfx[1];}
+}
+
+
+
+
+ global proc  an_ikFkLegServiceProc ( string $ikJnt[], string $CtNams[] ) //процедура создает механизм для корректроно переключения ик фк.
+{
+  //l_kneeIk_CT    l_footIk_CT     l_upLeg_CT     l_knee_CT       l_foot_CT
+
+string $Jnt[] = an_childCapture (`textFieldGrp -q -text legTFBG_LegJnt`);
+
+addAttr   -ln "K_soft"   -keyable true  $ikJnt[1] ;
+
+string $Blend = `createNode -name ( an_pfxMinus($CtNams[5])+"kSoft") "blendTwoAttr"`;
+	connectAttr -f ($Blend+".output ") ($ikJnt[1]+".K_soft");
+	connectAttr -f    ($CtNams[1]+".softness") ($Blend+".attributesBlender ") ;
+
+
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 0 -v 0      ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 15 -v 0.034 ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 30 -v 0.038 ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 45 -v 0.028 ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 60 -v 0.012 ($Blend+".input[0]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 65 -v 0     ($Blend+".input[0]");
+
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 0 -v 0      ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 15 -v 0.097 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 30 -v 0.135 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 45 -v 0.147 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 60 -v 0.137 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 75 -v 0.108 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 90 -v 0.07  ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 105 -v 0.025 ($Blend+".input[1]");
+	setDrivenKeyframe -cd ($Jnt[1]+".rz") -dv 110 -v 0    ($Blend+".input[1]");
+
+string $curves[] = ` listConnections $Blend`;
+
+
+ keyTangent -e -a -f 0 -inAngle 0.00758467  -outAngle 0.00758467   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 15 -inAngle 0.0022837  -outAngle 0.0022837   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 30 -inAngle -0.000922274  -outAngle -0.000922274   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 45 -inAngle -0.00198057  -outAngle -0.00198057   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 60 -inAngle -0.00328864  -outAngle -0.00328864   -inWeight 1 $curves[2];
+ keyTangent -e -a -f 65 -inAngle -0.00676812  -outAngle -0.00676812   -inWeight 1 $curves[2];
+
+ keyTangent -e -a -f 0 -inAngle 0.0226763  -outAngle 0.0226763   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 15 -inAngle 0.00834517  -outAngle 0.00834517   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 30 -inAngle 0.00397887  -outAngle 0.00397887   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 45 -inAngle 0  -outAngle 0  -inWeight 1 $curves[3];
+ keyTangent -e -a -f 60 -inAngle -0.00310352  -outAngle -0.00310352   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 75 -inAngle -0.00533169  -outAngle -0.00533169   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 90 -inAngle -0.00660493  -outAngle -0.00660493   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 105 -inAngle -0.00891482  -outAngle -0.00891482   -inWeight 1 $curves[3];
+ keyTangent -e -a -f 110 -inAngle -0.0119366  -outAngle -0.0119366   -inWeight 1 $curves[3];
+
+}
+
+global proc   an_leg_deleteLegRig ()
+{
+string $Obg[] = an_legFldNames();
+string $Jnt[] = an_childCapture (`textFieldGrp -q -text legTFBG_LegJnt`);
+string $reversJnt =  `textFieldButtonGrp -q -tx legTFBG_ReversJnt` ;
+parent -w $reversJnt;
+an_delRig ($Obg[0]);
+an_setOriginalValues($Jnt);
+setAttr ($reversJnt+".visibility") 1;
+}
+
+
+
+global proc pvAddHeelRise()
+
+{
+	addAttr -ln "ballLean"   "l_footIk_CT" ;
+	setAttr -e -keyable true "l_footIk_CT.ballLean" ;
+	connectAttr   "l_footIk_CT.ballLean" "l_legRevers6_jnt.rotateY";
+
+	addAttr -ln "ballLean"   "r_footIk_CT" ;
+	setAttr -e -keyable true "r_footIk_CT.ballLean" ;
+	connectAttr   "r_footIk_CT.ballLean" "r_legRevers6_jnt.rotateY";
+
+
+	addAttr -ln "clenchFoot"   "l_footIk_CT" ;
+	setAttr -e -keyable true "l_footIk_CT.clenchFoot" ;
+	connectAttr   "l_footIk_CT.clenchFoot" "l_kneeIk_ToeA_ik.rotateX";
+
+	addAttr -ln "clenchFoot"   "r_footIk_CT" ;
+	setAttr -e -keyable true "r_footIk_CT.clenchFoot" ;
+	connectAttr   "r_footIk_CT.clenchFoot" "r_kneeIk_ToeA_ik.rotateX";
+
+
+    addAttr -ln "heelRise" -at double l_footIk_CT ;
+    setAttr -e -keyable true l_footIk_CT.heelRise ;
+
+    expression -e -s "$roll = l_footIk_CT.footRoll ;\n$Break = l_footIk_CT.footBreak ;\n$ballRaise = l_footIk_CT.ballRaise ;\n$toeRaise = l_footIk_CT.toeRaise ;\n$toeTwist = l_footIk_CT.toeTwist ;\n$side = l_footIk_CT.side ;\n$ballTwist = l_footIk_CT.ballTwist ;\n$heelTwist = l_footIk_CT.heelTwist ;\n$heelRise = l_footIk_CT.heelRise ;\nl_legRevers6_jnt.rotateZ = (clamp (0, $Break, $roll)) + $ballRaise ;\nl_legRevers5_jnt.rotateZ =  (clamp (0, 90, ($roll - $Break))) + $toeRaise ;\nl_legRevers5_jnt.rotateY = $toeTwist ;\nl_legRevers4_jnt.rotateY = $ballTwist ;\nl_legRevers3_jnt.rotateZ = (min($roll,0) * -1) + $heelRise ;\nl_legRevers1_jnt.rotateZ = min($side,0) * -1 ;\nl_legRevers2_jnt.rotateZ = max(0,$side);\nl_legRevers3_jnt.rotateY = $heelTwist ;"  -o "" -ae 1 -uc all  l_footIk_exp ;
+
+    addAttr -ln "heelRise" -at double r_footIk_CT ;
+    setAttr -e -keyable true r_footIk_CT.heelRise ;
+
+    expression -e -s "$roll = r_footIk_CT.footRoll ;\n$Break = r_footIk_CT.footBreak ;\n$ballRaise = r_footIk_CT.ballRaise ;\n$toeRaise = r_footIk_CT.toeRaise ;\n$toeTwist = r_footIk_CT.toeTwist ;\n$side = r_footIk_CT.side ;\n$ballTwist = r_footIk_CT.ballTwist ;\n$heelTwist = r_footIk_CT.heelTwist ;\n$heelRise = r_footIk_CT.heelRise ;\nr_legRevers6_jnt.rotateZ = (clamp (0, $Break, $roll)) + $ballRaise ;\nr_legRevers5_jnt.rotateZ =  (clamp (0, 90, ($roll - $Break))) + $toeRaise ;\nr_legRevers5_jnt.rotateY = $toeTwist ;\nr_legRevers4_jnt.rotateY = $ballTwist ;\nr_legRevers3_jnt.rotateZ = (min($roll,0) * -1) + $heelRise ;\nr_legRevers1_jnt.rotateZ = min($side,0) * -1 ;\nr_legRevers2_jnt.rotateZ = max(0,$side);\nr_legRevers3_jnt.rotateY = $heelTwist ;"  -o "" -ae 1 -uc all  r_footIk_exp ;
+
+    setAttr -lock false "r_footIk_CT.additional" ;
+    setAttr -lock false "l_footIk_CT.additional" ;
+
+    deleteAttr -attribute "side" "r_footIk_CT" ; undo ;
+    deleteAttr -attribute "side" "l_footIk_CT" ; undo ;
+    deleteAttr -attribute "FingersBend" "r_footIk_CT" ; undo ;
+    deleteAttr -attribute "FingersBend" "l_footIk_CT" ; undo ;
+    deleteAttr -attribute "additional" "r_footIk_CT" ; undo ;
+    deleteAttr -attribute "additional" "l_footIk_CT" ; undo ;
+    deleteAttr -attribute "stretching" "r_footIk_CT" ; undo ;
+    deleteAttr -attribute "stretching" "l_footIk_CT" ; undo ;
+    deleteAttr -attribute "upLength" "r_footIk_CT" ; undo ;
+    deleteAttr -attribute "upLength" "l_footIk_CT" ; undo ;
+    deleteAttr -attribute "dwLength" "r_footIk_CT" ; undo ;
+    deleteAttr -attribute "dwLength" "l_footIk_CT" ; undo ;
+    deleteAttr -attribute "softness" "r_footIk_CT" ; undo ;
+    deleteAttr -attribute "softness" "l_footIk_CT" ; undo ;
+    deleteAttr -attribute "softIK" "r_footIk_CT" ; undo ;
+    deleteAttr -attribute "softIK" "l_footIk_CT" ; undo ;
+
+    setAttr -lock true "r_footIk_CT.additional" ;
+    setAttr -lock true "l_footIk_CT.additional" ;
+}

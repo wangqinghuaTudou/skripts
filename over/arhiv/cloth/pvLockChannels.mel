@@ -1,0 +1,371 @@
+// @2011 Pavel Volokushin
+// p.volokushin@gmail.com
+
+/*! ## Скрипт лочит каналы объектов в сцене по их суффиксам.
+
+> 1. Если выбран параметр "all" то скрипт проходит по сцене и лочит все объекты с правильными суффиксами.
+> 2. Если выбран суффикс, то скрипт лочит каналы только для объектов с заданным суффиксом.
+> 3. Если выбран режим "selected", то скрипт лочит все каналы у объекта, независимо от его суффикса.
+> 4. Тоже самое для разлочивания каналов.
+*/
+
+//source pvProcedures ;
+
+global int $count ;
+
+global proc pvLockChannelsRefreshUI ()
+{
+    global string $pvRBbuttSuff ;
+    $currState = `radioButton -q -sl $pvRBbuttSuff` ;
+    optionMenuGrp -e -enable $currState pvOMGlock ;
+}
+
+global proc pvLockChannels ()
+{
+    global string $pvRBbuttSel ;
+    global string $pvRBbuttSuff ;
+	global string $suffList[] ;
+	clear $suffList ;
+	$suffList = {
+		"all",		// the entire list
+		"geo",		// geometry
+		"nurbs",	// nurbs
+		"jnt",		// joints
+		"bind",		// skinning joints
+		"grp",		// group nodes
+		"ori",		// orientation transform
+		"con",		// connection transform
+		"aux",		// animators parent
+		"match",	// match transform
+		"crv",		// curve
+		"ik",		// ikHandle
+		"clstr", 	// custer
+		"lttc",		// lattice
+		"loc",      // locator
+		"space"	    // switch spacing
+        } ;
+
+    if (`window -exists pvLockChannelsWin`) deleteUI pvLockChannelsWin ;
+        window -s 0 -width 80 -height 100 -t "Lock Channels" pvLockChannelsWin ;
+
+    columnLayout -adj 1 ;
+        rowColumnLayout -numberOfColumns 3 -columnAttach 1 "right" 0 -columnWidth 1 85 -columnWidth 2 55 -columnWidth 3 100 ;
+        $pvRCselSuff = `radioCollection` ;
+        $pvRBbuttSel = `radioButton -label "Selected"` ;
+        $pvRBbuttSuff = `radioButton -onc pvLockChannelsRefreshUI -ofc pvLockChannelsRefreshUI -label "Suffix"` ;
+        radioCollection -edit -select $pvRBbuttSel $pvRCselSuff ;
+
+        optionMenuGrp -cw 1 50 pvOMGlock ;
+        for ($item in $suffList)
+        {
+            menuItem -l $item ;
+        }
+        optionMenuGrp -e -enable 0 pvOMGlock ;
+    setParent.. ;
+
+    columnLayout -adj 1 ;
+        separator -height 5 -style "in" ;
+        rowColumnLayout -numberOfColumns 2 -columnAttach 1 "right" 0 -columnWidth 1 100 -columnWidth 2 100 ;
+        $button = `button -l "Lock Channles" -c ("pvLockChannelsMain")` ;
+        $button2 = `button -l "Unlock Channels" -c ("pvUnlockChannelsMain")` ;
+
+    showWindow pvLockChannelsWin ;
+}
+
+global proc pvLockChannelsMain ()
+{
+    global string $pvRBbuttSel ;
+    global string $pvRBbuttSuff ;
+    global int $count ;
+    $count = 0 ;
+
+    if (`radioButton -q -sl $pvRBbuttSuff`)
+    {
+        string $class = `optionMenuGrp -q -v pvOMGlock`;
+        if ($class == "grp" ) pvLockBySuffix ($class, 1,1,1,0, 1 ) ;
+        if ($class == "geo" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "nurbs" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "jnt" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "bind" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "ori" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "con" ) pvLockBySuffix ($class, 0,0,1,1, 1 ) ;
+        if ($class == "aux" ) pvLockBySuffix ($class, 0,0,1,1, 1 ) ;
+        if ($class == "match" ) pvLockBySuffix ($class, 2,2,2,1, 1 ) ;
+        if ($class == "crv" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "ik" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "clstr" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "lttc" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "loc" ) pvLockBySuffix ($class, 2,2,2,0, 1 ) ;
+        if ($class == "space" ) pvLockBySuffix ($class, 2,2,2,1, 1 ) ;
+        if ($class == "all" )
+        {
+            pvLockBySuffix ("grp", 1,1,1,2, 1 ) ;
+            pvLockBySuffix ("geo", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("nurbs", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("jnt", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("bind", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("ori", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("con", 0,0,1,1, 1 ) ;
+            pvLockBySuffix ("aux", 0,0,1,1, 1 ) ;
+            pvLockBySuffix ("match", 2,2,2,1, 1 ) ;
+            pvLockBySuffix ("crv", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("ik", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("clstr", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("lttc", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("loc", 2,2,2,2, 1 ) ;
+            pvLockBySuffix ("space", 2,2,2,1, 1 ) ;
+        }
+    }
+    if (`radioButton -q -sl $pvRBbuttSel`)
+        pvLockBySuffix ("grp", 1,1,1,0, 1 ) ;
+    print ($count + " items was successufully locked. \n") ;
+}
+
+global proc pvUnlockChannelsMain ()
+{
+    global string $pvRBbuttSel ;
+    global string $pvRBbuttSuff ;
+    global int $count ;
+    $count = 0 ;
+
+    if (`radioButton -q -sl $pvRBbuttSuff`)
+    {
+        string $class = `optionMenuGrp -q -v pvOMGlock` ;
+        if ($class == "grp" ) pvUnlockBySuffix ($class) ;
+        if ($class == "geo" ) pvUnlockBySuffix ($class) ;
+        if ($class == "nurbs" ) pvUnlockBySuffix ($class) ;
+        if ($class == "jnt" ) pvUnlockBySuffix ($class) ;
+        if ($class == "bind" ) pvUnlockBySuffix ($class) ;
+        if ($class == "ori" ) pvUnlockBySuffix ($class) ;
+        if ($class == "con" ) pvUnlockBySuffix ($class) ;
+        if ($class == "aux" ) pvUnlockBySuffix ($class) ;
+        if ($class == "match" ) pvUnlockBySuffix ($class) ;
+        if ($class == "crv" ) pvUnlockBySuffix ($class) ;
+        if ($class == "ik" ) pvUnlockBySuffix ($class) ;
+        if ($class == "clstr" ) pvUnlockBySuffix ($class) ;
+        if ($class == "lttc" ) pvUnlockBySuffix ($class) ;
+        if ($class == "loc" ) pvUnlockBySuffix ($class) ;
+        if ($class == "space" ) pvUnlockBySuffix ($class) ;
+        if ($class == "all" )
+        {
+            pvUnlockBySuffix ("grp") ;
+            pvUnlockBySuffix ("geo") ;
+            pvUnlockBySuffix ("nurbs") ;
+            pvUnlockBySuffix ("jnt") ;
+            pvUnlockBySuffix ("bind") ;
+            pvUnlockBySuffix ("ori") ;
+            pvUnlockBySuffix ("con") ;
+            pvUnlockBySuffix ("aux") ;
+            pvUnlockBySuffix ("match") ;
+            pvUnlockBySuffix ("crv") ;
+            pvUnlockBySuffix ("ik") ;
+            pvUnlockBySuffix ("clstr") ;
+            pvUnlockBySuffix ("lttc") ;
+            pvUnlockBySuffix ("loc") ;
+            pvUnlockBySuffix ("space") ;
+        }
+    }
+    if (`radioButton -q -sl $pvRBbuttSel`)
+        pvUnlockBySuffix ("grp") ;
+    print ($count + " items was successufully unlocked. \n") ;
+}
+
+
+global proc pvLockBySuffix (string $suff, int $t, int $r, int $s, int $v, int $check)
+{
+    global string $pvRBbuttSel ;
+    global string $pvRBbuttSuff ;
+    string $objs[] ;
+    if (`radioButton -q -sl $pvRBbuttSel`)
+        $objs = `ls -sl` ;
+
+    if (`radioButton -q -sl $pvRBbuttSuff`)
+        $objs = `ls ("*_" + $suff)` ;
+    string $locked = 0 ;
+    string $connected = 0 ;
+    global int $count ;
+
+	string $attributes[10] = {
+					".translateX",
+					".translateY",
+					".translateZ",
+					".rotateX",
+					".rotateY",
+					".rotateZ",
+					".scaleX",
+					".scaleY",
+					".scaleZ",
+					".visibility"
+					} ;
+	for ($each in $objs)
+	{
+	    if ($t == 0)
+    		for ($i = 0; $i <3; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 0 -k 1 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($t == 1)
+    		for ($i = 0; $i <3; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 1 -k 0 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($t == 2)
+    		for ($i = 0; $i <3; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 1 -k 0 -cb 1 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($r == 0)
+    		for ($i = 3; $i <6; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 0 -k 1 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($r == 1)
+    		for ($i = 3; $i <6; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 1 -k 0 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($r == 2)
+    		for ($i = 3; $i <6; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 1 -k 0 -cb 1 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($s == 0)
+    		for ($i = 6; $i <9; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 0 -k 1 -cb 1 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($s == 1)
+    		for ($i = 6; $i <9; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 1 -k 0 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($s == 2)
+    		for ($i = 6; $i <9; $i++)
+    		{
+    			if ($check == 1) $locked = `pvCheckLock ($each + $attributes[$i])` ;
+    			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+    			if (($locked == 0) && ($connected ==0))
+    			{
+    				setAttr -l 1 -k 0 -cb 1 ($each + $attributes[$i]) ;
+    			}
+    		}
+	    if ($v == 0)
+        {
+            if ($check == 1) $locked = `pvCheckLock ($each + $attributes[9])` ;
+    		$connected = `pvCheckConnect ($each + $attributes[9])` ;
+    		if (($locked == 0) && ($connected ==0))
+    		{
+        		setAttr -l 0 -k 1 -cb 1 ($each + $attributes[9]) ;
+    		}
+        }
+	    if ($v == 1)
+	    {
+    		if ($check == 1) $locked = `pvCheckLock ($each + $attributes[9])` ;
+    		$connected = `pvCheckConnect ($each + $attributes[9])` ;
+    		if (($locked == 0) && ($connected ==0))
+			{
+    			setAttr -l 1 -k 0 ($each + $attributes[9]) ;
+			}
+        }
+	    if ($v == 2)
+        {
+            if ($check == 1) $locked = `pvCheckLock ($each + $attributes[9])` ;
+    		$connected = `pvCheckConnect ($each + $attributes[9])` ;
+    		if (($locked == 0) && ($connected ==0))
+    		{
+        		setAttr -k 0 -cb 1 ($each + $attributes[9]) ;
+    		}
+        }
+    $count = $count + 1 ;
+	}
+}
+
+global proc pvUnlockBySuffix (string $suff)
+{
+    global string $pvRBbuttSel ;
+    global string $pvRBbuttSuff ;
+    string $objs[] ;
+    if (`radioButton -q -sl $pvRBbuttSel`)
+        $objs = `ls -sl` ;
+    if (`radioButton -q -sl $pvRBbuttSuff`)
+        $objs = `ls ("*_" + $suff)` ;
+    string $connected = 0 ;
+    global int $count ;
+
+	string $attributes[10] = {
+					".translateX",
+					".translateY",
+					".translateZ",
+					".rotateX",
+					".rotateY",
+					".rotateZ",
+					".scaleX",
+					".scaleY",
+					".scaleZ",
+					".visibility"
+					} ;
+
+	for ($each in $objs)
+	{
+   		for ($i = 0; $i <3; $i++)
+   		{
+   			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+   			if ($connected ==0) setAttr -l 0 -k 1 ($each + $attributes[$i]) ;
+   		}
+   		for ($i = 3; $i <6; $i++)
+   		{
+   			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+   			if ($connected ==0) setAttr -l 0 -k 1 ($each + $attributes[$i]) ;
+   		}
+   		for ($i = 6; $i <9; $i++)
+   		{
+   			$connected = `pvCheckConnect ($each + $attributes[$i])` ;
+   			if ($connected ==0) setAttr -l 0 -k 1 ($each + $attributes[$i]) ;
+   		}
+   		$connected = `pvCheckConnect ($each + $attributes[9])` ;
+   		if ($connected == 0) setAttr -l 0 -k 1 ($each + $attributes[9]) ;
+    $count = $count + 1 ;
+	}
+}
+
+pvLockChannels ;

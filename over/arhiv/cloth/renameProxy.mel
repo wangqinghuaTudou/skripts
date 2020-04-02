@@ -1,0 +1,6 @@
+global proc renameProxy ()
+{
+string $Joint[] = `ls -sl`;
+if(`objectType $Joint[0]` == "joint" ) rename $Joint[1] ($Joint[0]+"_proxy");
+else  rename $Joint[0] ($Joint[1]+"_proxy");
+}
