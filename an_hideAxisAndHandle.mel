@@ -1,0 +1,18 @@
+global proc an_hideAxisAndHandle()
+{
+string $sel[] = `ls -sl`;
+for ($each in $sel)
+		{
+		select $each;
+		select -hierarchy;
+		string $objects[] = `ls -sl`;
+		for ($obj in $objects)
+				{
+				select  $obj;
+				if (`toggle -q -selectHandle`) toggle   -selectHandle;
+				if (`toggle -q -localAxis`) toggle   -localAxis;
+				if (`toggle -q -rotatePivot`) toggle   -rotatePivot;
+				}
+		}
+select -cl  ;
+}

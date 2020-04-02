@@ -1,0 +1,151 @@
+global proc an_ctrlColor ()
+{
+string $win = "an_ctColor";
+if (`window -exists $win`) deleteUI $win;
+window   -wh 192 145 $win;
+
+int $lfColorValue = 18;
+int $cnColorValue = 17;
+int $rtColorValue = 13;
+
+float $lfColor[] = `colorIndex -q $lfColorValue`;
+float $cnColor[] = `colorIndex -q $cnColorValue`;
+float $rtColor[] = `colorIndex -q $rtColorValue`;
+
+        string $an_fullLayout = `columnLayout -w 180`; //210
+                int $rows = 3, $columns = 12;
+                int $cellWidth = 15, $cellHeight = 60;
+        frameLayout -labelVisible false  -collapsable false -collapse false;
+																									// create and initialize palette
+                        palettePort -dimensions 12 3 -width 180 -height 60 -dragCallback "an_dragColor" -ced 0 -td 1 -at 32 -setCurCell 0 mainPalette; //23
+
+								for ($i=1; $i<=31; $i++ ) {
+									float $tmp[] = `colorIndex -q $i`;
+									if ($i<=23)
+												palettePort -e -r -rgb ($i-1) $tmp[0] $tmp[1] $tmp[2] mainPalette;
+												else
+												palettePort -e -r -rgb ($i) $tmp[0] $tmp[1] $tmp[2] mainPalette;
+								}
+                        setParent.. ;
+
+                        separator;
+        setParent $an_fullLayout;
+
+				button -l "Change Colors" -w 183 -c "an_ChangeColor  mainPalette" ;
+
+        frameLayout -labelVisible false  -collapsable false -collapse false;
+                        rowColumnLayout -nc 6 -cw 1 40 -cw 2 20 -cw 3 40 -cw 4 20 -cw 5 40 -cw 6 20;
+                                palettePort -dimensions 1 1 -width 40 -height 20 -ed 0
+                                        -rgb 0 $lfColor[0] $lfColor[1] $lfColor[2] -dropCallback "an_dropColor" an_lfColorPort;
+                                intField -v $lfColorValue -min 1 -max 31 -ec "an_colorChangeFromValue 1" an_lfColorValue;
+                                palettePort -dimensions 1 1 -width 40 -height 20 -ed 0
+                                        -rgb 0 $cnColor[0] $cnColor[1] $cnColor[2] -dropCallback "an_dropColor" an_cnColorPort;
+                                intField -v $cnColorValue -min 1 -max 31 -ec "an_colorChangeFromValue 2" an_cnColorValue;
+                                palettePort -dimensions 1 1 -width 40 -height 20 -ed 0
+                                        -rgb 0 $rtColor[0] $rtColor[1] $rtColor[2] -dropCallback "an_dropColor" an_rtColorPort;
+                                intField -v $rtColorValue -min 1 -max 31 -ec "an_colorChangeFromValue 3" an_rtColorValue;
+                        setParent $an_fullLayout;
+                        rowColumnLayout -nc 3 -cw 1 62 -cw 2 61 -cw 3 61;
+                                button -c "an_ChangeColor  leftPalette"   -l "Left" -w 62 an_lfColorButton;
+                                button -c "an_ChangeColor  centerPalette"   -l "Center" -w 61 an_cnColorButton;
+                                button -c "an_ChangeColor  rightPalette"   -l "Right" -w 61 an_rtColorButton;
+		setParent $an_fullLayout;
+		separator;
+		       button -l "Erase Colors" -w 183 -c "an_clearOverride" ;
+
+showWindow $win;
+
+}
+
+
+global proc an_ChangeColor ( string $palette)
+{
+        int $color;
+
+           string $list[] = `ls -sl`;
+
+
+        if ($palette == "mainPalette")
+               $color = `palettePort -q -scc mainPalette`+ 1;
+
+
+        if ($palette == "leftPalette")
+                $color = `intField -q -v an_lfColorValue`;
+        if ($palette == "centerPalette")
+                $color = `intField -q -v an_cnColorValue`;
+        if ($palette == "rightPalette")
+                $color = `intField -q -v an_rtColorValue`;
+				print($list);
+				print($color+"\n\n\n");
+        an_colorOverride ($list, $color);
+ }
+
+
+
+global proc an_colorOverride (string $list[], int $color)
+{
+        string $shape[], $layer[], $colorNode;
+
+        for ($node in $list){
+        //determine shape node
+        $shape = `listRelatives -f -s $node`;
+        if (size($shape) == 0){
+                //transform only
+                $colorNode = $node;
+        }else{
+                //shape node
+                $colorNode = $shape[0];
+        }
+        //determine layer
+        $layer = `listConnections -t displayLayer $colorNode`;
+        //disconnect layer if exists
+        if (size($layer) != 0)
+                disconnectAttr  ($layer[0] + ".drawInfo") ($colorNode + ".drawOverride");
+
+        setAttr ($colorNode + ".overrideEnabled") 1;
+        setAttr ($colorNode + ".overrideColor") $color;
+        }
+        print "Color override complete.\n";
+}
+
+
+global proc an_clearOverride()
+{
+string $sel[] = `ls -sl` ;
+string $obj ;
+string $objShape[] ;
+for ($obj in $sel)
+	  {
+		if (`size (listConnections ($obj+".overrideEnabled"))` == 0)
+			{
+				setAttr ($obj+".overrideDisplayType") 0 ;
+				setAttr ($obj+".overrideEnabled") 0 ;
+			}
+
+		$objShape = `listRelatives -s $obj` ;
+		print $objShape;
+
+		if (!`connectionInfo -isDestination (  $objShape[0]+".overrideColor")`)
+			{
+				setAttr ($objShape[0]+".overrideDisplayType") 0 ;
+				setAttr ($objShape[0]+".overrideEnabled") 0 ;
+				setAttr ($objShape[0]+".overrideColor") 1 ;
+			}
+	  }
+}
+
+/*
+proc an_initPalette( string $palette )
+{
+    if (`palettePort -exists $palette`) {
+		for ($i=1; $i<=31; $i++ ) {
+			float $tmp[] = `colorIndex -q $i`;
+			if ($i<=23)
+                        palettePort -e -r -rgb ($i-1) $tmp[0] $tmp[1] $tmp[2] $palette;
+                        else
+                        palettePort -e -r -rgb ($i) $tmp[0] $tmp[1] $tmp[2] $palette;
+		}
+	}
+}
+
+*/
