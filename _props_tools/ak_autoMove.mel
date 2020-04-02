@@ -1,0 +1,159 @@
+ 
+global proc ak_autoMove (){
+    string $win = "AUTO";
+    if (`window -exists $win`) deleteUI $win;
+    window -t "autoMove" -w 101 -h 110 -mb 1 -tlb 1 $win;
+    window -e  -w 301 -h 80  $win;
+        columnLayout -w 301;
+            text "    Select wheel and press create";
+            separator -st "in"   -h 10;
+            
+            rowLayout -nc 4 -cw4 100 100 100 50;   text " ";
+            text "    Move direction:";
+            optionMenuGrp -w 20 -bgc 0.3 0.3 0.3 AXMOVE; menuItem -l "z"; menuItem -l "x";
+            setParent..;
+            separator -st "in"   -h 10;
+            rowLayout -nc 4 -cw4 150 150 100 50;
+            
+            button -l "Delete system" -w 150   -c "ak_autoMove_delete";
+            button  -l "create system"  -w 150 -c "ak_autoMove_ex";  
+    showWindow $win;}
+    
+//..............................................................................................//
+global proc ak_autoMove_ex (){
+    string $w = `optionMenuGrp -q -v AXMOVE`;
+    string $s[] = `ls -sl`; ak_autoMove_delete;
+    vector $v = `xform -q -rp $s[0]`;
+    string $l[] = `spaceLocator -n ($s[0]+"_autoMove_loc")`;
+    move ($v.x)($v.y)($v.z) $l[0]; makeIdentity -a 1 -t 1;
+    string $axs; string $formula; float $r;
+    if($w=="z"){$axs = "x"; $r = `getAttr ($s[0]+".bbsz")`;
+    $formula = "((($chg.z)*(cosd($rot.y))*(cosd($rot.x)))+(($chg.x)*(sind($rot.y))))";}
+    else{$axs = "z"; $r = `getAttr ($s[0]+".bbsx")`;
+    $formula = "(((($chg.x)*(cosd($rot.y))*(cosd($rot.z)))-(($chg.z)*(sind($rot.y))))*(-1))";}
+    if(`nodeType $s[0]`=="joint"){$r=1.0;}
+    //if(`checkBoxGrp -q -v1 MAM`){$r=`floatField -q -v FAM`;}
+    string $text =
+    "//.................... input data:"                                                +"\n"+
+    "global vector $"+$s[0]+"_old = <<0,0,0>>;"                                         +"\n"+ // old position
+    "       vector $mov = <<("+$l[0]+".tx),0,("+$l[0]+".tz)>>;"                         +"\n"+ // current position
+    "       vector $rot = <<("+$l[0]+".rx%360),("+$l[0]+".ry%360),0>>;"                 +"\n"+ // current rotate
+    "        float $dis = 0.0;"                                                         +"\n"+ // distance
+    "//.................... solution:"                                                  +"\n"+
+    "vector $chg = <<(($mov.x)-($"+$s[0]+"_old.x)),0,(($mov.z)-($"+$s[0]+"_old.z))>>;"  +"\n"+ // change position
+    "$dis = "+$formula+";"                                                              +"\n"+ // exit new distance
+    "//.................... output data:"                                               +"\n";
+    for($i=0;$i<(size($s));$i++){$text = $text+
+    $s[$i]+".r"+$axs+" = (("+$s[$i]+".r"+$axs+")+($dis/(2*3.14*"+($r/2.0)+")*360));"    +"\n";}// rotate object
+                                 $text = $text+
+    "//.................... return data:"                                               +"\n"+
+    "$"+$s[0]+"_old = <<($mov.x),0,($mov.z)>>"                                               ; // new old position
+    expression -n ($s[0]+"_ex") -s $text;                                        select $s[0];}
+    //..............................................................................................//
+    global proc ak_autoMove_delete (){string $s[] = `ls -sl`;
+    if(`gmatch $s[0] "*_autoMove_loc"`){error ("   >>> locator "+$s[0]+" - can not be selected");}
+    if(`objExists ($s[0]+"_autoMove_loc")`){delete ($s[0]+"_autoMove_loc") ($s[0]+"_ex");}    }
+//..............................................................................................//
+ak_autoMove;
+
+
+
+
+
+
+
+
+
+
+
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::://
+//  Script:     ak_autoMove                                                                     //
+//  Version:    1.0                                                                             //
+//  Date:       25.03.2013 correct 09.03.16                                                     //
+//  Author:     Andrey Kanin                                                                    //
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::://
+/*
+   GUIDE
+дл€ чего:
+   движение колеса по всем трем ос€м
+   https://www.youtube.com/watch?v=X2VRvT2ZLAo&feature=c4-overview&list=UUx9BeiSXoc77lReTmVUhgkA
+что делать:
+1. в << vector: >> выбрать вектор направлени€ движени€ объекта
+2. выбрать контроллер или объект , нажать << create >>
+   скрипт создает локатор "*_autoMove_loc" двига€ который будет вращатьс€ выбранный объект
+   *настройка глобального scale :
+   локатор "*_autoMove_loc" поместите в контроллер с глобальным scale
+   и установите парент-констрейн на него от управл€ющего контроллера
+меню:
+   << create >>                  - создает expression и локатор "*_autoMove_loc"
+   << *галочка* >>               - учитывать ли указаный диаметр в *числовом поле* или нет
+                                   (если отключено то будет братьс€ зачение с выбранного объекта)
+                                   *если выбрана кость то диаметр по умолчание беретс€ 1.0
+   << *числовое поле* >>         - значение желаемого диаметра
+   << D >>                       - вз€ть диаметр с выбранного объекта
+   << vector: >>                 - вектор направлени€ движени€ контроллера или объекта
+                         << z >> - по оси Z
+                         << x >> - по оси X
+   << x >>                       - удаление системы (необходимо выбрать объект)
+
+//.............................................................................................//
+global proc ak_autoMove (){
+string $win = "AUTO";
+if (`window -exists $win`) deleteUI $win;
+window -t "autoMove" -w 101 -h 110 -mb 1 -tlb 1 $win;
+columnLayout -w 101;
+   button -w 99 -h 20 -l "create"  -bgc 0.8 0.8 0.1 -c "ak_autoMove_ex";
+   separator -st "in" -w 100 -h 5;
+      rowLayout -nc 4 -cw4 1 17 59 20; text " ";
+         checkBoxGrp -w 15 -ncb 1 -v1 0 -cc
+"if(`checkBoxGrp -q -v1 MAM`){floatField -e -en 1 FAM;}else{floatField -e -en 0 FAM;}" MAM;
+         floatField -w 58 -h 19 -v 1.0 -pre 6 -bgc 0.28 0.28 0.28 -en 0 FAM;
+         button -l "D" -w 15 -h 19 -bgc 0.2 0.2 0.2 -c
+"string $sel[]=`ls -sl`;float $rSel=`getAttr ($sel[0]+\".bbsy\")`;floatField -e -v $rSel FAM;";
+      setParent..;
+      rowLayout -nc 4 -cw4 4 36 37 50; text " "; text "vector:";
+         optionMenuGrp -w 36 -bgc 0.3 0.3 0.3 AXMOVE; menuItem -l "z"; menuItem -l "x";
+         button -l "x" -w 15 -h 19 -bgc 0.2 0.2 0.2 -c "ak_autoMove_delete";
+      setParent..;
+setParent..;
+showWindow $win;}
+//..............................................................................................//
+global proc ak_autoMove_ex (){
+string $w = `optionMenuGrp -q -v AXMOVE`;
+string $s[] = `ls -sl`; ak_autoMove_delete;
+vector $v = `xform -q -rp $s[0]`;
+string $l[] = `spaceLocator -n ($s[0]+"_autoMove_loc")`;
+move ($v.x)($v.y)($v.z) $l[0]; makeIdentity -a 1 -t 1;
+string $axs; string $formula; float $r;
+if($w=="z"){$axs = "x"; $r = `getAttr ($s[0]+".bbsz")`;
+$formula = "((($chg.z)*(cosd($rot.y))*(cosd($rot.x)))+(($chg.x)*(sind($rot.y))))";}
+else{$axs = "z"; $r = `getAttr ($s[0]+".bbsx")`;
+$formula = "(((($chg.x)*(cosd($rot.y))*(cosd($rot.z)))-(($chg.z)*(sind($rot.y))))*(-1))";}
+if(`nodeType $s[0]`=="joint"){$r=1.0;}
+if(`checkBoxGrp -q -v1 MAM`){$r=`floatField -q -v FAM`;}
+string $text =
+"//.................... input data:"                                                +"\n"+
+"global vector $"+$s[0]+"_old = <<0,0,0>>;"                                         +"\n"+ // old position
+"       vector $mov = <<("+$l[0]+".tx),0,("+$l[0]+".tz)>>;"                         +"\n"+ // current position
+"       vector $rot = <<("+$l[0]+".rx%360),("+$l[0]+".ry%360),0>>;"                 +"\n"+ // current rotate
+"        float $dis = 0.0;"                                                         +"\n"+ // distance
+"//.................... solution:"                                                  +"\n"+
+"vector $chg = <<(($mov.x)-($"+$s[0]+"_old.x)),0,(($mov.z)-($"+$s[0]+"_old.z))>>;"  +"\n"+ // change position
+"$dis = "+$formula+";"                                                              +"\n"+ // exit new distance
+"//.................... output data:"                                               +"\n";
+for($i=0;$i<(size($s));$i++){$text = $text+
+$s[$i]+".r"+$axs+" = (("+$s[$i]+".r"+$axs+")+($dis/(2*3.14*"+($r/2.0)+")*360));"    +"\n";}// rotate object
+                             $text = $text+
+"//.................... return data:"                                               +"\n"+
+"$"+$s[0]+"_old = <<($mov.x),0,($mov.z)>>"                                               ; // new old position
+expression -n ($s[0]+"_ex") -s $text;                                        select $s[0];}
+//..............................................................................................//
+global proc ak_autoMove_delete (){string $s[] = `ls -sl`;
+if(`gmatch $s[0] "*_autoMove_loc"`){error ("   >>> locator "+$s[0]+" - can not be selected");}
+if(`objExists ($s[0]+"_autoMove_loc")`){delete ($s[0]+"_autoMove_loc") ($s[0]+"_ex");}    }
+//..............................................................................................//
+ak_autoMove;
+
+*/
