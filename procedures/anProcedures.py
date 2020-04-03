@@ -296,6 +296,7 @@ def an_turnBasedUi(sfx, title ='',  stepsLabel =[]):
 
 def an_TFBGcomand (TFBG):  return  "cmds.textFieldButtonGrp ('"+TFBG+"', e=True, tx= cmds.ls (sl=True)[0]);"
 
+"""
 def an_rivet(nameObject, e1, e2):  # e1, e2 - nambers of edges
     '''
     list = cmds.filterExpand (sm= 32)
@@ -353,7 +354,7 @@ def getRivets():
         for y in nods: tmp.append( [ x for x in cmds.listConnections(y) if cmds.nodeType(x)== tp] [0]    )
         nods= list(set(tmp)) 
     return nods
-    
+"""    
 
 def an_mixedSpace(transforms, obj, type='parent', mo=True):
     vPMA, constr='', ''   
