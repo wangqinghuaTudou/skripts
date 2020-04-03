@@ -68,7 +68,7 @@ import maya.mel as mm
 import maya.cmds as cmds
 import os, sys
 
-PATH = r"D:/Distributiv/3d/scripts" 
+PATH = r"D:/Distributiv/scripts" 
 SCRIPTS_FOLDER = ''
 PROCEDURES = 'procedures'
 FORBID_LIST = [PROCEDURES, 'pvCreatePSDposes', 'pvImportAllModules', 'an_scriptManager', 'an_scriptManager2']
@@ -92,7 +92,7 @@ def scriptManager(path ='', scriptFolder=''):
     an_checkContent (path, p_menu)
 
 def sort_path(path):
-    directories = sorted([d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]) 
+    directories = sorted([d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d)) and d!=".git"  ]) 
     files_py = sorted([f[:-3] for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f[-3:]=='.py' ])
     files_mel = sorted([f[:-4] for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f[-4:]=='.mel' ])
     return directories, files_py, files_mel
