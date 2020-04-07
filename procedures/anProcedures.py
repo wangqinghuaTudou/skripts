@@ -36,7 +36,9 @@ an_mixViaConstraint ()      - creates a mixing position of specified objects
 an_convertPointsNames()     - convert   "pointShape.vtx[0:3]"    to     [pointShape.vtx[0], pointShape.vtx[1],  pointShape.vtx[2], pointShape.vtx[3]] 
 an_saveLoadData():          - save and load data to/from object and file 
 an_makeDynamicsCurve ()     - make dinamics curve
-an_unicName ( num=False)    - return unik name
+
+#an_unicName ( num=False)   us   AnNames().unicName ("box", '_geo', char=True ) 
+
 an_turnBasedUi()            - steb by step uneversal UI
 an_TFBGcomand ():           - add sel comand to TFBG
 an_rivet()                  - rivet
@@ -263,7 +265,7 @@ def an_makeDynamicsCurve (vCurve):
     hairSys = cmds.listRelatives (hairSysShape, p=True)[0] 
     return dynCurve, folicle, hairSysShape
 
-
+"""
 def an_unicName (name, sfx , num=False, char=False):  #return unik name
     if char:
         print 42424
@@ -277,7 +279,7 @@ def an_unicName (name, sfx , num=False, char=False):  #return unik name
         if not cmds.objExists(name+sfx): #esli imya v scene otcutstvuet, to mozhno ispol`zovat` ishodnoe
             return name+sfx, '00'
         else: return an_unicName ( name, sfx , num=True)
-    
+"""  
 
 
 def an_turnBasedUi(sfx, title ='',  stepsLabel =[]):
