@@ -1,5 +1,13 @@
-from  anProcedures import  an_unicName
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+from an_classNames import AnNames
 import maya.cmds as cmds
+
+'''
+             rivet
+-rivet( )             -  создает локатор или косточку на поверхности. 
+-getRivets()          -  находит все риветы на выделленой поверхности
+'''
 
 def rivet(seurface='', edges=[], out = 'locator'):   
     if not seurface:
@@ -9,7 +17,9 @@ def rivet(seurface='', edges=[], out = 'locator'):
         seurface =  sel[0].split('.')[0]
         edges = [ x.split('[')[1].split(']')[0] for x in sel]
 
-    pfx = an_unicName(seurface, '_riv', num=True )[0]
+    name = AnNames().unicName(seurface, '_rivet', num=True )[0]
+    pfx = AnNames(name).sfxMinus ()
+    
     nameCFME1 = cmds.createNode ( 'curveFromMeshEdge', n=pfx+"rivetCurveFromMeshEdge1")
     cmds.setAttr ( ".ihi", 1)
     cmds.setAttr ( ".ei[0]",   int(edges[0]))
@@ -30,10 +40,10 @@ def rivet(seurface='', edges=[], out = 'locator'):
     cmds.connectAttr ( seurface + ".w",  nameCFME1 + ".im")
     cmds.connectAttr ( seurface + ".w",  nameCFME2 + ".im")
     if out =='locator': 
-        nameLocator = cmds.createNode ( 'transform' , n = an_unicName ('rivet','' )[0]  )
+        nameLocator = cmds.createNode ( 'transform' , n= name )
         cmds.createNode ( 'locator' , n= nameLocator + "Shape", p=nameLocator)
     else:
-        nameLocator = cmds.createNode ( 'joint' , n=pfx)
+        nameLocator = cmds.createNode ( 'joint' , n= name )
     
     nameAC = cmds.createNode ( 'aimConstraint', p= nameLocator , n=  nameLocator + "_rivetAimConstraint1")
     cmds.setAttr ( ".tg[0].tw", 1)

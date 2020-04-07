@@ -97,20 +97,19 @@ def sort_path(path):
     files_mel = sorted([f[:-4] for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f[-4:]=='.mel' ])
     return directories, files_py, files_mel
 
-#path = r"D:/Distributiv/3d/scripts" 
+
+def get_folders_path(rootDir, fld): 
+       global procPath
+       for lists in os.listdir(rootDir):
+           path = os.path.join(rootDir, lists) 
+           if lists==fld:  
+               procPath = os.path.abspath(path)
+           if os.path.isdir(path):
+               get_folders_path(path, fld)
 
 def an_sourceProcedures (path):
     global procPath  
     procPath = '' 
-    def get_folders_path(rootDir, fld): 
-           global procPath
-           for lists in os.listdir(rootDir):
-               path = os.path.join(rootDir, lists) 
-               if lists==fld:  
-                   procPath = os.path.abspath(path)
-               if os.path.isdir(path):
-                   get_folders_path(path, fld)
-    
     get_folders_path(path, 'procedures') 
     if procPath:
         directories, files_py, files_mel = sort_path(procPath)
