@@ -6,9 +6,10 @@ import maya.cmds as cmds
 import re
 
 """
-        AnNames
+        an_classNames
         
-    metods:  
+    metods: 
+        - unicName()
         - divideName ()
         - sfxMinus () 
         - fixNonUniqueName()
@@ -34,20 +35,23 @@ import re
         - getLeg()
 """
 
+#nn = AnNames().unicName ("box", '_geo', char=True ) 
+#cmds.polyCube(n=nn[0])
+
 # AnNames().getLeg()
 # AnNames().getArm()  
 # AnNamesQuadro().getArm() 
 # AnNamesQuadro().getLeg()  
-
+ 
 class AnNames(object):
     __prefixes = ['l_', 'r_', 'up_', 'dw_', 'fr_', 'bk_', 'mid_'] 
     __suffixes = ['_CT', '_jnt', '_bind', '_grp',  '_ori', '_con', '_geo', \
                   '_nurbs', '_proxy', '_match', '_crv', '_ik', '_mdv', '_scnt', \
-                  '_pma', 'adl', 'mdl', 'poci', 'pomi', 'posi', 'uc', 'dcm', \
+                  '_pma', '_adl', '_mdl', '_poci', '_pomi', '_posi', '_uc', '_dcm', \
                   '_set', '_loc', '_clstr', '_lttc', '_bs ', '_space', '_pvcnt', \
-                  '_eff', 'skin', 'ffd', 'cls', 'rbs', '_aux', '_bend', \
+                  '_eff', '_skin', '_ffd', '_cls', '_rbs', '_aux', '_bend', \
                   '_soft', '_bsLttc', '_pcnt', '_ocnt', '_parcnt', '_aimcnt', \
-                  '_dist', '_distDs', 'vprod', 'rhlp', '_tancnt', '_geocnt', \
+                  '_dist', '_distDs', '_vprod', '_rhlp', '_tancnt', '_geocnt', \
                   '_nrmcnt', '_popcnt']
     __general = ['switch', 'general', 'pivotOffset']  
     __body = ['body', 'pelvis', 'waistIk', 'waist', 'torso', 'hip', 'hips', 'shoulders', 'spine']
@@ -63,7 +67,21 @@ class AnNames(object):
     
     def __init__ (self, name=None, pfx=None):
         self.name = name
-    
+
+
+    def unicName (self, name, sfx , num=False, char=False):  #return unik name
+        if char:
+            for i in range(65, 91):
+                if not cmds.objExists(name+chr(i)+sfx): return name+chr(i)+sfx, chr(i)
+        elif num:
+            for i in xrange(1,100): 
+                    num = '0'+ str(i) if len(str(i))==1 else str(i)
+                    if not cmds.objExists(name+num+sfx): return name+num+sfx, num
+        else:# ecli nomer ne nuzhen
+            if not cmds.objExists(name+sfx): #esli imya v scene otcutstvuet, to mozhno ispol`zovat` ishodnoe
+                return name+sfx, '00'
+            else: return unicName ( name, sfx , num=True)
+ 
     def divideName (self):
         pref = ''
         suff = ''
@@ -100,19 +118,6 @@ class AnNames(object):
             newName = txt+strNewNum+sfx
         return  newName
 
-    def an_unicName (self, name, sfx , num=False):  #return unik name
-        print(name, sfx )
- 
-        if not num:# ecli nomer ne nuzhen
-            if not cmds.objExists(name+sfx): #esli imya v scene otcutstvuet, to mozhno ispol`zovat` ishodnoe
-                return name+sfx, '00'
-            else: return unicName ( name, sfx , num=True)
-        else:# ecli nomer nuzhen
-            for i in xrange(1,100): 
-                num = '0'+ str(i) if len(str(i))==1 else str(i)
-                if not cmds.objExists(name+num+sfx): return name+num+sfx, num 
-
- 
     def prefixes(self):
         return self.__prefixes
 
@@ -295,9 +300,6 @@ class AnNames(object):
         if query and p and self.name:        ############ query parent grp
             for index, fld in enumerate(childList):  
                 if self.name in fld: return parentList[index]
-    
-
- 
 
 class AnNamesQuadro(AnNames):
     def getArm(self, side=''):        #  insert *_elbowIkDw_CT to 2 position
@@ -315,13 +317,7 @@ class AnNamesQuadro(AnNames):
         return bipList         
        
     
-#nn = AnNames().an_unicName ("box", '_geo', num=True ) 
-#cmds.polyCube(n=nn[0])
 
-# AnNames().getLeg()
-# AnNames().getArm()  
-# AnNamesQuadro().getArm() 
-# AnNamesQuadro().getLeg()  
 
 
 
