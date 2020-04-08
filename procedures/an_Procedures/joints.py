@@ -1,4 +1,29 @@
 import maya.cmds as cmds
+from an_Procedures.utilities import an_delSys
+
+'''
+        joints
+-createBonesFromEdges ()           
+-an_convertSliceToList()   
+      
+'''
+
+def createBonesFromEdges (jntNum = 7):
+    smuthnes = len(cmds.ls(sl=True))//3
+    curv = mm.eval( 'polyToCurve -form 2 -degree 3;' )[0]
+    cmds.delete(ch=True)
+    cmds.rebuildCurve(curv, rt=0, s=smuthnes, constructionHistory=False )
+    
+    cmds.reverseCurve(curv,  constructionHistory=False )
+    jntXval = cmds.arclen(curv)/jntNum
+    res = an_jntOnCurv(curv, jntNum = jntNum, stretchable=False, pfx='')
+    try:  cmds.parent(res[0][0], w=True)
+    except RuntimeError :  pass
+    cmds.delete(res[1], curv)
+    cmds.makeIdentity (apply=True, t=1, r=1, s=1, n=0, pn=1)
+   
+    return res[0]
+    
 
 def an_jntOnCurv(curveName, jntNum = 10, stretchable=True, pfx=''):
     pfx = curveName+'ChSys' if not pfx else pfx
@@ -22,6 +47,6 @@ def an_jntOnCurv(curveName, jntNum = 10, stretchable=True, pfx=''):
     		 if stretchable: cmds.connectAttr (scaleMDVnod+'.outputX',  jointName[index]+'.tx')
     ikHandl = cmds.ikHandle  (n=pfx+'_ik', sol='ikSplineSolver',   ccv=False,  pcv=False,  sj=jointName[0], ee= jointName[-1], c=curveName)
     cmds.parent (jointName[0], curveName)
-    #if stretchable: an_delSys(ikHandl[0], objList =[jointName[0], jntPosMDVnod, scaleMDVnod, curvLength])
-    #else: an_delSys(ikHandl[0], objList =[jointName[0], ])
+    if stretchable: an_delSys(ikHandl[0], objList =[jointName[0], jntPosMDVnod, scaleMDVnod, curvLength])
+    else: an_delSys(ikHandl[0], objList =[jointName[0], ])
     return jointName, ikHandl
