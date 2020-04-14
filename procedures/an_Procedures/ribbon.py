@@ -67,7 +67,7 @@ def fkRigForSelJnt(pfx='test', jntNum=8):
     cmds.skinCluster(sk_plane, riv[0], toSelectedBones=True, useGeometry=True, dropoffRate=4, polySmoothness=False, nurbsSamples=25, rui=False, mi=5, omi =False, normalizeWeights=True)[0] 
     cmds.parentConstraint(jntList[0], fkRigGrp,  mo=True)
     
-def nurbsPlaneOnJnt(jntList, pfx=''):
+def nurbsPlaneOnJnt(jntList, pfx='', geo = 'nurbs'):
     if not pfx: pfx=chn(jntList[0]).sfxMinus()
     prWeight = an_distans (jntList[0], jntList[-1])/20 
     profilsList=[]
@@ -75,7 +75,10 @@ def nurbsPlaneOnJnt(jntList, pfx=''):
         crv = cmds.curve(d=1, p=((0, 0, prWeight),   (0, 0, prWeight*-1)))
         cmds.parentConstraint( jnt, crv, mo=False)
         profilsList.append(crv)
-    nPlane = cmds.loft( profilsList, n=pfx+'_nPlane', ch=True, rn=True, ar=True )[0]    
+    nPlane = cmds.loft( profilsList, n=pfx+'_nPlane', ch=True, rn=True, ar=True)[0]  
+    if not geo == 'nurbs':
+        nPlane = cmds.nurbsToPoly(nPlane, n=pfx+'_pPlane', pc=len(jntList), f=3, un=len(jntList), pt=1 )[0]
+        cmds.delete (pfx+'_nPlane')
     cmds.delete (profilsList)
     cmds.skinCluster(nPlane, jntList, dr=4.5)
     return nPlane
