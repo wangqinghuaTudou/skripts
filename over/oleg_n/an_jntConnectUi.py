@@ -6,7 +6,7 @@ WIN_NAME = SFX+"Win"
 BUTT_SIZE = [WIN_SIZE[0]/2, 25]
 
 
-def an_jntConnectUi( ):
+def an_jntConnectUi():
     if  cmds.window (WIN_NAME, exists=True ): cmds.deleteUI (WIN_NAME)
     cmds.window (WIN_NAME, t='an_connector', wh=WIN_SIZE,  s=False, rtf=True  )
     cmds.columnLayout(  ) 
@@ -18,7 +18,8 @@ def an_jntConnectUi( ):
     but('Match scaling', 'an_match (  scale=1)')
     but('Match pivot', 'an_match (  pivots=1)')
     but('Match all transforms', 'an_match ( pivots=1, position=1, rotation=1, scale=1)')
-    cmds.text(" ")
+    but('Clear all' ,  'clearUi("CLeft"); clearUi("CRight")') 
+    #cmds.text(" ")
     cmds.text("Connections : ", h=25, fn = "boldLabelFont",  bgc=[0,0,0]);  cmds.text(" ",  bgc=[0,0,0])
     cmds.setParent( '..' )
     cmds.gridLayout( numberOfColumns=1, cellWidthHeight=(420, 25)   )
@@ -31,8 +32,9 @@ def an_jntConnectUi( ):
     but('Select right',  'cmds.select(getList("CRight"))')
     but('Clear left' ,   'clearUi("CLeft")') 
     but('Clear right' ,  'clearUi("CRight")') 
-    but('Clear all' ,  'clearUi("CLeft"); clearUi("CRight")') 
-    but('Connect left to right' ,  'connect()') 
+    
+    but('Connect left to right   >> ' ,  "connect( ['CLeft', 'CRight'])") 
+    but('<<   Connect right to left ' ,  "connect( ['CRight', 'CLeft'])") 
     cmds.setParent( '..' ) 
     cmds.gridLayout( numberOfColumns=2, cellWidthHeight=(BUTT_SIZE[0], 540)  )
     cmds.scrollLayout (SFX+"CLeft", width=200)
@@ -59,9 +61,9 @@ def an_match ( pivots=False, position=False, rotation=False, scale=False):
     for i in range(ln):
          cmds.matchTransform(seursLst[i], targLst[i], pivots=pivots, position=position, rotation=rotation, scale=scale)
 
-def connect():
-    seursLst = getList('CLeft')
-    targLst = getList('CRight')
+def connect(dir):
+    seursLst = getList(dir[0])
+    targLst = getList(dir[1])
     ln = min(len(seursLst), len(targLst))
     for i in range(ln):
         if cmds.radioButtonGrp(SFX+"RBG", q=True, sl=True ) == 1:  #parent
