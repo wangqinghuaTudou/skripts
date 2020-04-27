@@ -12,7 +12,7 @@ def anim_to_bsh(geo, start, end, del_blds=True, dbl = True):
         mm.eval("playButtonStepForward; ") 
     targs.append(geoDbl)
     mm.eval("currentTime {} ; ".format(start)) 
-    vBsh = cmds.blendShape (targs,  inBetween=True)
+    vBsh = cmds.blendShape (targs[1:],  inBetween=True)
     if del_blds:
         cmds.delete(targs[:-1])
 
