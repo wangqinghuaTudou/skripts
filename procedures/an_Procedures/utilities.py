@@ -1,15 +1,29 @@
 import maya.cmds as cmds
+import maya.mel as mm
+from an_classNames import AnNames 
+from an_classControllers import AnControllers as ctrl 
+import math, cPickle
  
- 
-
 
 '''
         utelities
              
     - an_convertSliceToList()   
     - an_delSys
-    
-    
+    - an_childCapture()          -  returns a list  between two specified objects (list), or a list of child objects if  one object (string) specified in the input.
+    - an_helpLine()              -  templated line for polyvector CT
+    - an_distans ()              -  It creates a group of calculates the distance or return distans  between objects
+    - an_delSys()
+    - an_mixViaConstraint ()      - creates a mixing position of specified objects
+    - an_saveLoadData():          - save and load data to/from object and file 
+    - an_makeDynamicsCurve ()     - make dinamics curve
+    - an_turnBasedUi()            - steb by step uneversal UI
+    - an_mixedSpace()             - creates parentConstraint and mix its wheght to each over
+    - an_isObjInFolder()          - test  "is Obj In nesesary Folder "         
+    - an_isPointPosEqual          - if to points position equal return true
+    - an_isObjEqual()             - test to objects whith eny methods
+    - an_geoNormalSmooth()   
+  
 '''
 
 def an_convertSliceToList(pList): #convert   "pShape.vtx[0:3]"       to     [pShape.vtx[0], pShape.vtx[1],  pShape.vtx[2], pShape.vtx[3]] 
@@ -22,39 +36,34 @@ def an_convertSliceToList(pList): #convert   "pShape.vtx[0:3]"       to     [pSh
     return output
 
 
- 
+def an_delSys(ctrlObject, objList =[]):
+    if objList: # If the list is not empty, the deleting system will create
+        delObgList =[]
+        if not cmds.objExists(ctrlObject+'.delList'): #if attr Exists - create it
+            cmds.addAttr (ctrlObject, ln="delList", at="message", multi=True, keyable=False )
+        else: delObgList = cmds.listConnections( ctrlObject+'.delList', s=True, d= False ) #else get list Connections for determin length  
+        for index, obj in enumerate(objList):
+            cmds.connectAttr (obj+'.message',  ctrlObject+'.delList['+str(index+len(delObgList))+']')
+    else:  #If the list is empty the deleting system will started
+        if cmds.objExists(ctrlObject+'.delList'): # if del obj has del attr list
+            delObg = cmds.listConnections( ctrlObject+'.delList', s=True, d= False ) #get del attr list
+            if ctrlObject in delObg: delObg.remove(ctrlObject)
+            for obg in delObg:
+                if cmds.objExists(obg+'.delList'): an_delSys(obg) #if del obj has del attr list start recursy
+                else:
+                    if cmds.objExists(obg): cmds.delete (obg) # if obj is cliar del it
+            if cmds.objExists(ctrlObject): cmds.delete (ctrlObject)             
+        else: 
+            if cmds.objExists(ctrlObject): cmds.delete (ctrlObject)
 
-import maya.mel as mm
-import maya.cmds as cmds
-from an_classNames import AnNames 
-from an_classControllers import AnControllers as ctrl 
-import math
 
 """ 
 
-            utelities
-            
 
-an_childCapture()          -  returns a list  between two specified objects (list), or a list of child objects if  one object (string) specified in the input.
-an_helpLine()              -  templated line for polyvector CT
-an_distans ()              -  It creates a group of calculates the distance or return distans  between objects
-an_delSys()
-an_mixViaConstraint ()      - creates a mixing position of specified objects
-an_convertPointsNames()     - convert   "pointShape.vtx[0:3]"    to     [pointShape.vtx[0], pointShape.vtx[1],  pointShape.vtx[2], pointShape.vtx[3]] 
-an_saveLoadData():          - save and load data to/from object and file 
-an_makeDynamicsCurve ()     - make dinamics curve
-an_turnBasedUi()            - steb by step uneversal UI
-an_TFBGcomand ():           - add sel comand to TFBG
-an_mixedSpace()             - creates parentConstraint and mix its wheght to each over
-an_isObjInFolder()          - test  "is Obj In nesesary Folder "         
-an_isPointPosEqual          - if to points position equal return true
-an_isObjEqual()             - test to objects whith eny methods
-an_geoNormalSmooth()   
- 
 
 """
 
-#' -ch 1 -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kc 0 -su 0 -du 3 -sv 0 -dv 3 -tol 0.01 -fr 0  -dir 0'.replace(  ' ', '=').replace(  '=-', ', ') # convert mel flags to python
+#' -ch 1 -rpo 1 -rt 0 -end 1 -kr 0  -dir 0'.replace(  ' ', '=').replace(  '=-', ', ') # convert mel flags to python
 
 def an_childCapture(objects):   
     currentJnt = objects[0] if  type(objects) == list else objects
@@ -97,25 +106,7 @@ def an_distans ( start, end, act=''):
         xy = sqrt ((a[0]-b[0])*(a[0]-b[0])+(a[1]-b[1])*(a[1]-b[1]))
         return  sqrt (xy*xy+(a[2]-b[2])*(a[2]-b[2])) 
  
-def an_delSys(ctrlObject, objList =[]):
-    if objList: # If the list is not empty, the deleting system will create
-        delObgList =[]
-        if not cmds.objExists(ctrlObject+'.delList'): #if attr Exists - create it
-            cmds.addAttr (ctrlObject, ln="delList", at="message", multi=True, keyable=False )
-        else: delObgList = cmds.listConnections( ctrlObject+'.delList', s=True, d= False ) #else get list Connections for determin length  
-        for index, obj in enumerate(objList):
-            cmds.connectAttr (obj+'.message',  ctrlObject+'.delList['+str(index+len(delObgList))+']')
-    else:  #If the list is empty the deleting system will started
-        if cmds.objExists(ctrlObject+'.delList'): # if del obj has del attr list
-            delObg = cmds.listConnections( ctrlObject+'.delList', s=True, d= False ) #get del attr list
-            if ctrlObject in delObg: delObg.remove(ctrlObject)
-            for obg in delObg:
-                if cmds.objExists(obg+'.delList'): an_delSys(obg) #if del obj has del attr list start recursy
-                else:
-                    if cmds.objExists(obg): cmds.delete (obg) # if obj is cliar del it
-            if cmds.objExists(ctrlObject): cmds.delete (ctrlObject)             
-        else: 
-            if cmds.objExists(ctrlObject): cmds.delete (ctrlObject)
+
         
 
 def an_mixViaConstraint (objects, type='parent', mixAttr=''): # creates a mixing position of specified objects
@@ -132,8 +123,7 @@ def an_mixViaConstraint (objects, type='parent', mixAttr=''): # creates a mixing
 
 
 def an_saveLoadData(data=[], obgect='', delAttr = False, vDir=''): #save and load data to/from object and file 
-    import cPickle
-    import maya.mel as mm
+
     if not vDir: vDir = mm.eval("getenv (\"HOME\")")
     if data:             # if data exist - save mod 
             if obgect:                            # if  obgect exist - save on it
@@ -151,7 +141,6 @@ def an_saveLoadData(data=[], obgect='', delAttr = False, vDir=''): #save and loa
                     vString = cmds.getAttr  (obgect + '.data')
                     if delAttr: cmds.deleteAttr(obgect + '.data')
                     return cPickle.loads(str(vString))
-                    
             else :                                # if  obgect not exist - load from file
                     #vDir = mm.eval("getenv (\"HOME\")")
                     vFileName = cmds.fileDialog2( fileMode=1, caption="Load position", dir=vDir )
@@ -187,8 +176,6 @@ def an_turnBasedUi(sfx, title ='',  stepsLabel =[]):
     cmds.showWindow (win)
     return out
 
-def an_TFBGcomand (TFBG):  return  "cmds.textFieldButtonGrp ('"+TFBG+"', e=True, tx= cmds.ls (sl=True)[0]);"
- 
 
 def an_mixedSpace(transforms, obj, type='parent', mo=True):
     vPMA, constr='', ''   
