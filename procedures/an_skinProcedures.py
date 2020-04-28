@@ -10,11 +10,8 @@ import maya.cmds as cmds
     -copySkin ()
     -swapSkin()
     -copySkinToSelVertex()
-    
     -selectMissingRightSideJnt()
     -editSelectedJntWeights():  - run paint skin tools an lock unselected jnts weights -
-    
-    - skinUi
     
 """
 
@@ -117,6 +114,23 @@ def swapSkin( s_geo='', t_geo='', setSkinWeights=True ): #source_geo, target_geo
             cmds.select(s_geo, t_geo)
         return t_geo_weight
 
+ 
+def copySkinToSelVertex(sourceObj, destVert):  #copy Skin Weights from object to list of vertex on over object
+    destObj = destVert[0].split('.')[0]  
+    sourceSkin = cmds.ls(cmds.listHistory(sourceObj, pruneDagObjects=True) , type='skinCluster')[0]
+    influences = cmds.skinCluster(sourceSkin, query=True, influence=True)
+    joints = cmds.ls(influences, type='joint') # getting joints list on source skinCluster
+    nurbs = list(set(influences) - set(joints)) # getting nurbs list on source skinCluster
+    useComp = cmds.getAttr(sourceSkin + '.useComponents') # getting state of "useComponents" attribute on source skinCluster
+    destObjSkin = cmds.ls(cmds.listHistory(destObj, pruneDagObjects=True), type='skinCluster')[0]   # find skinCluster on the destination object
+    destInfluences = cmds.skinCluster(destObjSkin, query=True, influence=True)
+    for inf in influences:
+        if cmds.nodeType(inf) == 'joint' and not inf in destInfluences :
+            cmds.skinCluster(destObjSkin, edit=True, lockWeights=False, weight=0, addInfluence=inf) 
+    cmds.select(sourceObj, destVert)
+    cmds.copySkinWeights(  noMirror=True, surfaceAssociation='closestPoint', influenceAssociation='oneToOne', normalize=True) 
+    cmds.select(cl=True)
+        
 def selectMissingRightSideJnt():
     objectName = cmds.ls(sl=True)[0]
     skinClusterName =  cmds.ls (cmds.listHistory (objectName, pdo=1), type='skinCluster')[0]    ### if claster sel
@@ -135,7 +149,6 @@ def selectMissingRightSideJnt():
 def editSelectedJntWeights():  
     geo = cmds.ls(sl=True)[-1]
     jnts = cmds.ls(sl=True)[:-1]
-    
     skinClusterV = cmds.ls (cmds.listHistory (geo), type='skinCluster' )[0]
     jointName = cmds.ls (cmds.listHistory (skinClusterV, levels=1), type='transform')   
  
