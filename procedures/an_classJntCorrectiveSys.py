@@ -1,23 +1,15 @@
-# 03.04.2019   add mirowSolvVal()
-# 09.03.2019   ui 
-# 01.02.2019   add madeControlSimple() - edit 
-# 15.01.2019   add madeControlSimple() - hide fraim shape in control from sel grp 
-# 9.01.2019    create proc createFingersSys()      
-# 9.01.2019    add return function to mirrorJCSystem()
-
-from  anProcedures import  *
-from an_classControllers import AnControllers as ctrl
-from CharacterNames import CharacterNames as chn
-
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
-selbend, selUp = cmds.ls(sl=1)
-dirJntList={'Y':('y', '-y'), }
-self = JntCorrectiveSys().createBlok('l_earDw', selbend, selUp, dirJntList, 0.1  )
-if mirror: self.mirrorJCSystem()
-'''
-
-
-'''
+ 28.04.2020   import unicName from  AnNames class
+ 03.04.2019   add mirowSolvVal()
+ 09.03.2019   ui 
+ 01.02.2019   add madeControlSimple() - edit 
+ 15.01.2019   add madeControlSimple() - hide fraim shape in control from sel grp 
+ 9.01.2019    create proc createFingersSys() !!!!!!!     
+ 9.01.2019    add return function to mirrorJCSystem()
+ 
+ 
 JntCorrectiveSys()
     Attributes:
         - pfx              
@@ -75,6 +67,10 @@ JntCorrectiveSys()
         -printAttr ()
         -JCS_ui ()                       #JntCorrectiveSys().JCS_ui()
 '''
+from  anProcedures import  *
+from an_classControllers import AnControllers as ctrl
+from an_classNames import AnNames
+
 
 class JntCorrectiveSys(): # JCS_grp
     def __init__ (self, name=''): 
@@ -110,7 +106,7 @@ class JntCorrectiveSys(): # JCS_grp
 
     '''******* criating draft solver'''
     def addDraftDir(self,  axis = 'y'):
-        dir = an_unicName (self.pfx, '_dir' , num=True)[0]  
+        dir = AnNames().unicName(self.pfx, '_dir' , num=True)[0]  
         dirCt = dir[:-4]+'_ctrl'
         cmds.group (em=True, n = dir)
         objCT = ctrl( dirCt).makeController(shapeType='JCSCT', size=2.5*self.gScale) ##-------------------------------------------------------------------------------------------
@@ -180,7 +176,7 @@ class JntCorrectiveSys(): # JCS_grp
 
     '''******* criating simple solver '''
     def simpleDir (self, axis = 'y'):
-        dir = an_unicName (self.pfx, '_dir' , num=True)[0] # define name
+        dir = AnNames().unicName (self.pfx, '_dir' , num=True)[0] # define name
         dirCt = dir[:-4]+'_ctrl'
         pfx = dirCt[:-5] 
         cmds.group (em=True, n = dir)
@@ -209,7 +205,9 @@ class JntCorrectiveSys(): # JCS_grp
         if jntType == 'bend': parentObj, parentGrp  = self.baseObj, self.bendGrp
         else:                 parentObj  , parentGrp  =  self.baseUpObj, self.upGrp
         
-        jntPfx = an_unicName (chn(parentObj).sfxMinus(), '_jnt', num=True)   [0] [:-4]      
+       
+        
+        jntPfx = AnNames().unicName (AnNames(parentObj).sfxMinus(), '_jnt', num=True)   [0] [:-4]      
         cmds.select (cl=True)
         rtJnt = cmds.joint (n = jntPfx+'Ori_jnt', p=[0,0,0])
         jnt = cmds.joint (n = jntPfx+'_jnt', p=[0,  1*self.gScale, 0])
@@ -303,7 +301,7 @@ class JntCorrectiveSys(): # JCS_grp
         for jnt in jnts:   
             parentJnt=cmds.listRelatives(jnt, p=True)[0]
             dirJntList={'y':('y', '-y'), }
-            self = JntCorrectiveSys().createBlok(chn(jnt).sfxMinus(), jnt, parentJnt, dirJntList, gScale )
+            self = JntCorrectiveSys().createBlok(AnNames(jnt).sfxMinus(), jnt, parentJnt, dirJntList, gScale )
             cmds.parent (self.sysGrp, rigGrp)
             controls = self.directionsList[0].replace('_dir', '_ctrl')
             cmds.connectAttr(rigGrp+".l_multiplier",  controls+".multiplier")
@@ -638,7 +636,7 @@ class JntCorrectiveSys(): # JCS_grp
         cmds.text (l="     - to delete a rig, select the group with the system and press \"Delete\"", al="left")
         cmds.text (l="     - to mirror a system, select the group with the system and press \"Mirror\"", al="left")
         cmds.floatSliderGrp('ISG_gScaleCSys', label='Global scale:', field=True, min=0.1, max=10,  v=1 , cw = [(1, 124), (2, 50) ], enable= True )
-        bc = "cmds.textFieldButtonGrp ('TFBG_Prefix', e=True, tx= chn(cmds.ls (sl=True)[0]).sfxMinus()  );"
+        bc = "cmds.textFieldButtonGrp ('TFBG_Prefix', e=True, tx= AnNames(cmds.ls (sl=True)[0]).sfxMinus()  );"
         cmds.textFieldButtonGrp ('TFBG_Prefix', l='Prefix :',  bl="Assign",  cw = [(1, 124), (2, 245)],  bc = bc )
         cmds.rowColumnLayout (nc=3, cw=[(1, 140), (2, 140), (3, 140)], columnSpacing=[(2,2),(3,2)], rowSpacing=[(2,2),(3,2)])   
         cmds.button   (l="Mirror system",  c='an_mirrorSys()')
