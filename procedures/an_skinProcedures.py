@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import maya.cmds as cmds
-
+import maya.mel as mm
 """
         an_skinProcedures
         
@@ -14,7 +14,24 @@ import maya.cmds as cmds
     -editSelectedJntWeights():  - run paint skin tools an lock unselected jnts weights -
     
 """
+def buildSkin():
+    geo = 'body_cage'
+    copySkin ('legs_skin', geo) #копируем скин на кейдж обьект
+    swapSkin( 'waist_skin',  geo) # перекидываем через hips01_bind кость. Тем самым заменяем hips01_bind на hips02_bind
+    swapSkin( 'arms_skin',  geo) # перекидываем через bodyTw0_jnt кость. Тем самым заменяем bodyTw0_jnt на spine04_bind
+    
+    tw_data =['l_upArm_jnt', 'l_armBendUpTw_geo'], ['l_foreArm_jnt', 'l_armBendDwTw_geo'], ['r_upArm_jnt', 'r_armBendUpTw_geo'], ['r_foreArm_jnt', 'r_armBendDwTw_geo'], ['neck_bind', 'neckTwTw_geo']
+    
+    #for jnt, twGeo in tw_data:
+        #cmds.select(jnt, twGeo)
+        #mm.eval("AddInfluence")
+        #cmds.select(cl=True)
+        
+    for jnt, twGeo in tw_data:
+        weight = swapSkin( twGeo, geo )
+ 
 
+ 
 
 def getSkin (geo):
     skinCluster = cmds.ls (cmds.listHistory (geo), type='skinCluster' )[0]
