@@ -227,14 +227,13 @@ def an_isObjEqual(objA, objB, bBox=False, cv=False):
                     return False   
             return True
             
-def an_geoNormalSmooth(geo):
-    if not geo: geo = ls(sl=True)[0]
-    cmds.polyNormalPerVertex (geo, ufn=True)
-    polySoftEdge (geo, a=180, ch=0)
-    cmds.bakePartialHistory( geo,prePostDeformers=True )  
-
- 
-
+def geoNormalSmooth(geo=''):
+    if not geo: geo = cmds.ls(sl=True)
+    else: geo = [geo,]
+    for each in geo:
+        cmds.polyNormalPerVertex (each, ufn=True)
+        cmds.polySoftEdge (each, a=180, ch=0)
+        cmds.bakePartialHistory( each, prePostDeformers=True )  
 
 
 
