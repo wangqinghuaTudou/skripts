@@ -23,7 +23,8 @@ import math, cPickle
     - an_isPointPosEqual          - if to points position equal return true
     - an_isObjEqual()             - test to objects whith eny methods
     - an_geoNormalSmooth()   
-  
+    - connectGeoToGeo()           - connect meshes whith many method
+    - an_killReferenceNamespace ()
 '''
 
 def an_convertSliceToList(pList): #convert   "pShape.vtx[0:3]"       to     [pShape.vtx[0], pShape.vtx[1],  pShape.vtx[2], pShape.vtx[3]] 
@@ -162,7 +163,8 @@ def an_makeDynamicsCurve (vCurve):
     return dynCurve, folicle, hairSysShape
 
  
-def an_turnBasedUi(sfx, title ='',  stepsLabel =[]):
+
+def an_turnBasedUi(sfx, title ='',  stepsLabel =[], stepNum=True):
     win = sfx+"Win"
     if  cmds.window (win, exists=True ): cmds.deleteUI (win)
     cmds.window (win, t=title, width=420,  height=50, s=True, rtf=True, menuBar=True )
@@ -170,7 +172,8 @@ def an_turnBasedUi(sfx, title ='',  stepsLabel =[]):
     cmds.columnLayout (sfx+"ColumnL", adjustableColumn=True)
     out =[]    
     for idx, step in enumerate(stepsLabel):
-        cmds.frameLayout (sfx+"FL"+str(idx+1), label="Step "+str(idx+1)+': '+step  , cll=0, w=424, bgc=[0,0,0], borderVisible=True)
+        leble = "Step "+str(idx+1)+': '+step   if stepNum else step
+        cmds.frameLayout (sfx+"FL"+str(idx+1), label=leble  , cll=0, w=424, bgc=[0,0,0], borderVisible=True)
         out.append(sfx+"FL"+str(idx+1))
         cmds.setParent (sfx+"ColumnL")  
     cmds.showWindow (win)
@@ -236,9 +239,25 @@ def geoNormalSmooth(geo=''):
         cmds.bakePartialHistory( each, prePostDeformers=True )  
 
 
+def connectGeoToGeo(sers, dest, conType='bsh'): # 'bsh',  'mesh', 'melnitsaWrap'
+    if conType=='bsh':
+        bl_shape = cmds.blendShape(sers, dest, o="world" )
+    elif conType=='mesh':
+        cmds.connectAttr (sers +'.outMesh', dest+'.inMesh', f=True )
+    elif conType=='melnitsaWrap':
+        sersShape = cmds.listRelatives( sers, s=True )[0]
+        cmds.select(dest)
+        deform = cmds. deformer (type='melnitsaWrap')[0]
+        cmds.connectAttr (sersShape+'.worldMesh[0]', deform+'.obstacleMesh') 
 
-
-
+def an_killReferenceNamespace ():
+    sel = cmds.ls(typ="reference")
+    for i in sel:
+        cmds.lockNode (i, l=0 )
+        cmds.delete (i)
+    for i in [x for x in cmds.namespaceInfo (lon=True) if x not in ["UI", "shared"] ]:
+        mm.eval('namespace -mnr -rm '+i)
+       
 
 
 
