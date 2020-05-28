@@ -7,16 +7,14 @@ import math, cPickle
 
 '''
         utelities
-             
+     
     - an_convertSliceToList()   
-    - an_delSys
     - an_childCapture()          -  returns a list  between two specified objects (list), or a list of child objects if  one object (string) specified in the input.
     - an_helpLine()              -  templated line for polyvector CT
     - an_distans ()              -  It creates a group of calculates the distance or return distans  between objects
     - an_delSys()
     - an_mixViaConstraint ()      - creates a mixing position of specified objects
     - an_saveLoadData():          - save and load data to/from object and file 
-    - an_makeDynamicsCurve ()     - make dinamics curve
     - an_turnBasedUi()            - steb by step uneversal UI
     - an_mixedSpace()             - creates parentConstraint and mix its wheght to each over
     - an_isObjInFolder()          - test  "is Obj In nesesary Folder "         
@@ -150,19 +148,7 @@ def an_saveLoadData(data=[], obgect='', delAttr = False, vDir=''): #save and loa
                     r.close()
                     return data
 
-def an_makeDynamicsCurve (vCurve): 
-    cmds.select (vCurve)
-    mm.eval("makeCurvesDynamicHairs 0 0 0;")
-    crvShape= cmds.listRelatives (vCurve, s=True)[0]
-    folicle = cmds.listConnections (crvShape+".local") [0]
-    folShape = cmds.listRelatives (folicle, s=True)[0]
-    dynCurveShape = cmds.connectionInfo (folShape+".outCurve", destinationFromSource=True)[0].split('.')[0]   
-    dynCurve = cmds.listRelatives (dynCurveShape, p=True)[0]		 
-    hairSysShape = cmds.connectionInfo (folShape+".outHair", destinationFromSource=True)[0].split('.')[0] 
-    hairSys = cmds.listRelatives (hairSysShape, p=True)[0] 
-    return dynCurve, folicle, hairSysShape
 
- 
 
 def an_turnBasedUi(sfx, title ='',  stepsLabel =[], stepNum=True):
     win = sfx+"Win"
