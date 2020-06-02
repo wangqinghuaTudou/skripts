@@ -1,6 +1,6 @@
 
 # -*- coding: utf-8 -*-
-
+import os
 import maya.mel as mm
 import maya.cmds as cmds
 """

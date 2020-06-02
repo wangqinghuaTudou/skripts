@@ -29,7 +29,9 @@ def an_skinWeightManager():
     cmds.setParent ("..")
     cmds.button( label='Copy weights to vertex', command= 'copySkinToVertex()')
 
-    cmds.button( label='Copy weights', command= "copySkinToListObjects()", p=leauts[3])
+    cmds.rowColumnLayout( numberOfColumns=2, columnWidth=[(1, 213), (2, 214)], columnSpacing=[(2,2),(3,2)], p=leauts[3], rowSpacing=[(2,2),(3,2)], ) 
+    cmds.button( label='Copy and mirrow weights ', command= "copyAndMirrowWeights()" )
+    cmds.button( label='Copy weights', command= "copySkinToListObjects()" )
     cmds.setParent ("..")
     cmds.canvas(h=5)
 
@@ -70,6 +72,8 @@ def copySkinToVertex():
     destVert= an_convertSliceToList(cmds.ls (sl=True))
     sourceObj = cmds.textField("copTF", q=1, tx=1 )
     copySkinToSelVertex(sourceObj, destVert)
+
+
 
 
 

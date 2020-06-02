@@ -12,6 +12,7 @@ import maya.mel as mm
     -copySkinToSelVertex()
     -selectMissingRightSideJnt()
     -editSelectedJntWeights():  - run paint skin tools an lock unselected jnts weights -
+    -copyAndMirrowWeights()
     
 """
 def buildSkin():
@@ -178,6 +179,26 @@ def editSelectedJntWeights():
     mm.eval('setSmoothSkinInfluence '+jnts[0]+' ;artSkinRevealSelected artAttrSkinPaintCtx;')
 
  
+def copyAndMirrowWeights( s_geo='', t_geo=''):
+
+    if not s_geo:  s_geo, t_geo = cmds.ls(sl=True)        
+    if cmds.ls (cmds.listHistory (t_geo), type='skinCluster' ):  #unbind skin Cluster if it exists
+        skCluster = cmds.ls (cmds.listHistory (t_geo), type='skinCluster' )[0]
+        cmds.skinCluster(skCluster,   e=True, unbind=True)   
+    hist = cmds.listHistory(s_geo, pruneDagObjects=True) # try to find history on the destination object
+    s_geoSkin = cmds.ls(hist, type='skinCluster')[0]  if cmds.ls(hist, type='skinCluster') else None
+    jointName = cmds.ls (cmds.listHistory (s_geoSkin, levels=1), type='transform') 
+    rSidJnt = []
+    for jnt in jointName:
+        if 'l_'==jnt[:2]:rSidJnt.append ('r_'+jnt[2:])
+        else:   rSidJnt.append(jnt)
+    
+    jnt = [x for x in  rSidJnt if  cmds.objectType(x)=='joint']  +  [x for x in  rSidJnt if not cmds.objectType(x)=='joint'] # sort	jnt forvard
+    skCluster = cmds.skinCluster(rSidJnt, t_geo, tsb=True, normalizeWeights=True)[0]  #skinning
+    cmds.select(s_geo, t_geo) 
+    mm.eval( 'MirrorSkinWeights')
+
+
  
 
     
