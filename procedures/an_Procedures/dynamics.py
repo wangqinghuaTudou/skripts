@@ -10,9 +10,13 @@ import maya.cmds as cmds
     -setCharToTPos()
     -getDataFromNucleas() return cloths, colliders and constraints
     -an_makeDynamicsCurve ()
+    -selectDynObj()
 """
 #geo = cmds.ls(sl=True)
 #dfgdg=setObjToTPos(geo)
+
+geo = 'roza_indeec:hair_dyn' 
+
 
 
 def setObjToTPos(geo):
@@ -32,7 +36,6 @@ def setObjToTPos(geo):
     return bl_shape[0]+'.'+t_geo, t_geo
 
 def setCharToTPos(geometrys = '', keys =[-20, -10]):
- 
     if not geometrys: geometrys = cmds.ls(sl=True)
     selLen = len(cmds.referenceQuery(geometrys[0],filename=True ).split('.m')[0])+3
     ref = cmds.referenceQuery(geometrys[0],filename=True )[:selLen]  
@@ -42,10 +45,10 @@ def setCharToTPos(geometrys = '', keys =[-20, -10]):
     t_grp = cmds.group(n=name+"_tPos", em=1)
     cmds.addAttr(t_grp, ln='t_val', k=True, max=1, min=0)
     for geo in geometrys:
-        bl_shape, t_geo = setObjToTPos(geo)
-        cmds.connectAttr(t_grp+'.t_val', bl_shape  )
-        cmds.parent(t_geo, t_grp)
-         
+        if not 'Constraint' in cmds.connectionInfo(geo+'.tx', sfd=True):
+            bl_shape, t_geo = setObjToTPos(geo)
+            cmds.connectAttr(t_grp+'.t_val', bl_shape  )
+            cmds.parent(t_geo, t_grp)   
     cmds.delete(cmds.parentConstraint(general, t_grp))
     cmds.setKeyframe( t_grp+'.t_val', v=1, t=keys[0])
     cmds.setKeyframe( t_grp+'.t_val', v=0, t=keys[1])
@@ -54,9 +57,10 @@ def getDataFromNucleas(nucleus) :
     cloths = [x.split('.')[0] for x in cmds.connectionInfo(nucleus+'.startFrame', dfs=True) if 'nCloth'==cmds.nodeType(x)]
     colliders = [x.split('.')[0] for x in cmds.connectionInfo(nucleus+'.startFrame', dfs=True) if 'nRigid'==cmds.nodeType(x)]
     constCon = cmds.listAttr(nucleus+'.inputStart', m=1) 
-    constraints = [ cmds.connectionInfo(nucleus+'.'+x, sfd=True).split('.')[0] for x in constCon ]
+    if constCon:  constraints = [ cmds.connectionInfo(nucleus+'.'+x, sfd=True).split('.')[0] for x in constCon ]
+    else: constraints =[]
     return cloths, colliders, constraints
-    
+
 def an_makeDynamicsCurve (vCurve): 
     cmds.select (vCurve)
     mm.eval("makeCurvesDynamicHairs 0 0 0;")
@@ -69,30 +73,23 @@ def an_makeDynamicsCurve (vCurve):
     hairSys = cmds.listRelatives (hairSysShape, p=True)[0] 
     return dynCurve, folicle, hairSysShape
 
-  
+def selectDynObj( nucleuses = ''):
+    if not nucleuses: nucleuses = cmds.ls(sl=True)
+    nodList =[] 
+    for  nucleus in  nucleuses:   
+        for  nod in  [x.split('.')[0] for x in cmds.connectionInfo(nucleus+'.startFrame', dfs=True)]:
+            geo =  cmds.connectionInfo(nod+'.inputMesh', sfd=True)
+            par =  cmds.listRelatives(geo.split('.')[0], p=True)[0]
+            nodList.append(par)
+    cmds.select(nodList)  
     
-    
- 
 #def getDynamicsData():
     #referenceList =  [x for x in  cmds.ls(rf = True) if not cmds.file(rfn=x, q=True, deferReference=True )]
     #file -unloadReference "BabushkaMiddleRN" "D:/work/Project/MALYSH/assets/chars/babushka/maya/babushka_dyn.mb";
     #cmds.file(  query=True, referenceNode=True )
     #cmds.file("BabushkaMiddleRN",   loadReference=True)
 
- 
- 
-    
- 
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
+   
     
     
     
