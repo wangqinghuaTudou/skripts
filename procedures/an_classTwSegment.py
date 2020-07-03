@@ -1,10 +1,11 @@
-
+# 30.06.2020 add setCylinderWheight()
 from anProcedures import *
 from CharacterNames import CharacterNames as chn
 from an_classControllers import AnControllers  as ctrl
+from an_skinProcedures import *
 
 '''
-        AnTwSegment()
+        an_classTwSegment.py
         
 metods:
     -makeTwSegment()
@@ -17,6 +18,7 @@ metods:
     -makeJntStretching()
     -makeJntTwist()
     -makeGeo ()
+    -setCylinderWheight()
     -printAttr()
     
 additionalProcedurs:
@@ -64,8 +66,9 @@ class AnTwSegment():
         
     def makeTwSegment(self):
         self.makeGrp()
-        self.makeCurve()
-        self.makeControllers()
+        if not self.curve:
+            self.makeCurve()
+            self.makeControllers()
         self.makeJoints ()
         self.makeJntStretching()
         self.makeJntTwist()
@@ -77,6 +80,7 @@ class AnTwSegment():
         cmds.parentConstraint(  self.baseObjects[0], self.rigGrp,  mo=False)
 
     def delGrp(self): cmds.delete (self.rigGrp)
+    
     
     def makeCurve(self):
         distans= an_distans (self.baseObjects[0], self.baseObjects[1])/(self.curvePointsNum-1)
@@ -137,13 +141,27 @@ class AnTwSegment():
     def makeGeo (self):  
         geo, madeNod = cmds.polyCylinder (r=cmds.arclen(self.curve)/self.jntNum *0.2, h=cmds.arclen(self.curve), sx=self.subAx, sy=self.jntNum, sz=0, ax=[1,0,0], rcp=0, cuv=3, ch=1, n=self.name+'Tw_geo' ) 
         cmds.delete (cmds.pointConstraint (self.jntList[0], self.jntList[-1], geo))
-        cmds.delete (cmds.aimConstraint (self.jntList[0], geo))
+        cmds.delete (cmds.aimConstraint (self.jntList[-1], geo))
         cmds.skinCluster(self.jntList[:-1],  geo, tsb=True, )
         cmds.setAttr (madeNod+ ".radius", cmds.arclen(self.curve)/self.jntNum *1.2)
         cmds.setAttr (geo+".inheritsTransform", 0)
         cmds.parent(geo, self.rigGrp)    
         self.geo=geo
-    
+        
+        #____________________________________________________________________________________________________
+    def setCylinderWheight(self): 
+        weightList = getSkin (self.geo)       #   self.geo)
+        jnts = weightList.keys()
+        jnts.sort()
+        pNum = len(weightList[jnts[0]])
+        for i in range(len(jnts)):
+            weightList[jnts[i]] = [0]*pNum
+            for j in range( i*self.subAx, i*self.subAx+self.subAx) :
+                weightList[jnts[i]][j] = 1
+        for j in range(pNum-self.subAx, pNum): 
+            weightList[jnts[-1]][j] = 1
+        setSkin (self.geo, weightList)
+
     def makeJntTwist(self): 
         upVectSt = {'y':[0,1,0], 'z':[0,0,1]}[self.twAxis[0]]
         cmds.aimConstraint(self.clastersList[1] , self.clastersList[0] , aim=[1,0,0], u=upVectSt, wu=upVectSt, wut='objectrotation', wuo=self.twObj[0])
