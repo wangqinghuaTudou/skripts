@@ -1,12 +1,12 @@
 
 import maya.cmds as cmds 
-#from An_Controllers import An_Controllers  as ctrl 
 from CharacterNames import CharacterNames as chn
 from An_Skeleton import An_Skeleton  as An_Skeleton 
 from anProcedures import *
-from an_twistSegment import  an_twistSegment
-from an_twistSegmentOld import  an_twistSegmentOld
+#from an_twistSegment import  an_twistSegment
+#from an_twistSegmentOld import  an_twistSegmentOld
 from an_classControllers import AnControllers as ctrl 
+from an_classTwSegment import AnTwSegment
  
 def an_06_limbBendRig(action = 'rig', limb=''):    #'delRig', 
     win = "limbBendOptionWin"
@@ -206,6 +206,18 @@ def limbLightVerRig(limb=''):
             an_connectRigVis (rigGrp, [clst])
             
     # 4 Make tw
+    
+    upTwSegment = AnTwSegment( info['side']+ 'up', baseObjects= [axisCt.name, info['jnt'][2]], parentObj= info['rigGrp'])
+    upTwSegment.curve= twCurves[0]
+    upTwSegment.makeTwSegment()
+
+    dwTwSettings = AnTwSegment( info['side']+ 'dw', baseObjects= [info['jnt'][2], info['jnt'][3]], parentObj= info['rigGrp'])
+    upTwSegment.curve= twCurves[1]
+    dwTwSettings.makeTwSegment()
+
+
+    
+    '''
     upTwSettings= [(axisCt.name, info['upAxis'][0]), (info['jnt'][2], info['upAxis'][0])]
     dwTwSettings= [(info['jnt'][2], info['upAxis'][1]), (info['jnt'][3], info['upAxis'][1])]
     twData =[]
@@ -224,10 +236,15 @@ def limbLightVerRig(limb=''):
         twData.append(twInfo) 
         cmds.parent (twInfo['rigGrp'], info['rigGrp'])
     info ['twData'] = twData
-    
+   
     
     an_delSys(rigGrp, objList =[info['twData'][0]['rigGrp'], info['twData'][1]['rigGrp']]) 
     an_connectRigVis (rigGrp, [    info['twData'][0]['rigGrp'],    info['twData'][1]['rigGrp'], twCurves[0],   twCurves[1], ])
+    '''
+    
+    an_delSys(rigGrp, objList =[upTwSegment.rigGrp, dwTwSettings.rigGrp]) 
+    an_connectRigVis (rigGrp, [ upTwSegment.rigGrp, dwTwSettings.rigGrp , twCurves[0], twCurves[1] ])
+        
     cmds.parent (rigGrp, info['generalCt'][2])
     
     # aim constraint to axis ct from Oleg Nechaev:
@@ -235,10 +252,8 @@ def limbLightVerRig(limb=''):
     #if 'r_arm' in info['pfx']: cmds.aimConstraint( info['jnt'][2], axisCt.conGrp,  aim=[-1, 0, 0],  u=[1, 0, 0], wu=[1, 0, 0],  wuo= info['jnt'][0], wut="objectrotation"   )          
             
                 
-        
-           
-        
 #  Make rig Old Version ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 def limbRig(limb=''):
 
     if not limb:
