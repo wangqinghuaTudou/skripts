@@ -1,6 +1,7 @@
 
 from an_classNames import  AnNames
-from  anProcedures import  * 
+#from  anProcedures import  * 
+from an_Procedures.utilities import *  
 from an_classControllers import  AnControllers  as ctrl
 
 '''
@@ -29,12 +30,9 @@ metods:
 '''
 
 
-
 '''
 def setSceletonToStructure (self, miror=True):
 
-         
-       
 
 for jnt in self.getJntList():
     if self.getParent(jnt): 
@@ -207,9 +205,15 @@ class AnSkeleton():
         handCT.placeCT (hand, 'parent')
         cmds.parent (legCT.oriGrp, handCT.oriGrp, jenCT.name )
         handCT.addColor (jenCT.name, 'left')
+        
+        
+        #name=AnNames(AnNames(name).fixNonUniqueName()).divideName() _________________________________________________________________
+        
+        
             
         for jnt in self.getJntList(): # pos controller 
-            pfx = chn(jnt).divideName()[0]+ chn(jnt).divideName()[1]  
+            #pfx = chn(jnt).divideName()[0]+ chn(jnt).divideName()[1]  
+            pfx = AnNames(jnt).divideName()[0]+ AnNames(jnt).divideName()[1]  
             ctObj = ctrl(pfx+'_CT')
             ctObj.makeSpherAndOrientAxis( gScale )
             #ctObj.gropeCT()
@@ -230,20 +234,41 @@ class AnSkeleton():
         for jnt in self.getJntList():  # aim constrant from ct to jnt
             if not jnt in nonChildJnt+parentJnt:
                 child = cmds.listRelatives(jnt, c=True)[0]
-                cH_CT = chn(child).divideName()[0]+ chn(child).divideName()[1]+'_CT'
-                CT = chn(jnt).divideName()[0]+ chn(jnt).divideName()[1]+'_CT'
-                cmds.aimConstraint(cH_CT, jnt, upVector=[0,0,1], worldUpVector=[0,0,1], worldUpType="objectrotation", worldUpObject= CT)   
+                #ch_CT = chn(child).divideName()[0]+ chn(child).divideName()[1]+'_CT'
+                #CT = chn(jnt).divideName()[0]+ chn(jnt).divideName()[1]+'_CT'
+                
+                ch_CT = AnNames(child).divideName()[0]+ AnNames(child).divideName()[1]+'_CT'
+                CT = AnNames(jnt).divideName()[0]+ AnNames(jnt).divideName()[1]+'_CT'
+
+                cmds.aimConstraint(ch_CT, jnt, upVector=[0,0,1], worldUpVector=[0,0,1], worldUpType="objectrotation", worldUpObject= CT)   
             
         for chJnr, pJnt in paretStructureForCt: ##################### parent and haid controls
-            chCtOri = chn(chJnr).divideName()[0]+ chn(chJnr).divideName()[1]+'_ori'
-            pCt = chn(pJnt).divideName()[0]+ chn(pJnt).divideName()[1]+'_CT'
+        
+        
+            #chCtOri = chn(chJnr).divideName()[0]+ chn(chJnr).divideName()[1]+'_ori'
+            #pCt = chn(pJnt).divideName()[0]+ chn(pJnt).divideName()[1]+'_CT'
+            
+            chCtOri = AnNames(chJnr).divideName()[0]+ AnNames(chJnr).divideName()[1]+'_ori'
+            pCt = AnNames(pJnt).divideName()[0]+ AnNames(pJnt).divideName()[1]+'_CT'          
+            
+            
             cmds.parent (chCtOri, pCt)
             cmds.setAttr(chCtOri+'.v', 0)
             
         for jnt1, midJnt, jnt2 in midCtList: 
-            ct1 = chn(jnt1).divideName()[0]+ chn(jnt1).divideName()[1]+'_CT'
-            ct2 = chn(jnt2).divideName()[0]+ chn(jnt2).divideName()[1]+'_CT'
-            cmds.pointConstraint( ct1,ct2, chn(midJnt).divideName()[0]+ chn(midJnt).divideName()[1]+'_ori', mo=True )
+            #ct1 = chn(jnt1).divideName()[0]+ chn(jnt1).divideName()[1]+'_CT'
+            #ct2 = chn(jnt2).divideName()[0]+ chn(jnt2).divideName()[1]+'_CT'
+            
+            ct1 = AnNames(jnt1).divideName()[0]+ AnNames(jnt1).divideName()[1]+'_CT'
+            ct2 = AnNames(jnt2).divideName()[0]+ AnNames(jnt2).divideName()[1]+'_CT'
+            
+            
+            
+            #cmds.pointConstraint( ct1,ct2, chn(midJnt).divideName()[0]+ chn(midJnt).divideName()[1]+'_ori', mo=True )
+            cmds.pointConstraint(ct1 ,ct2, AnNames(midJnt).divideName()[0]+ AnNames(midJnt).divideName()[1]+'_ori', mo=True )
+            
+            
+            
             
         for lst in helpLineList:
             cmds.parent ( an_helpLine(lst, name="line01_crv"), jenCT.name)
