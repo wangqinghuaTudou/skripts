@@ -5,16 +5,17 @@ import maya.cmds as cmds
 import maya.mel as mm
 import os
 import sys
+from an_classNames import AnNames as chn
 
 vDirPath ='//dataServer/Project/backup_s3d/lib/setup/maya/maya_scripts_rfm3/rigging_tools/procedures/'
 system_paths = list(sys.path)
 if not vDirPath in system_paths:
     sys.path.insert(0, vDirPath)
 
-from an_classNames import AnNames as chn
+
 
 '''
-        AnControllers()
+        an_classControllers()
 
     metods:
     - addDevideAttr (self, attrName='_')
@@ -270,15 +271,12 @@ class AnControllers(object):
     def renameCtShapes(self):
         pfx = chn(self.name).divideName()[0] + chn(self.name).divideName()[1]
         s_list = cmds.listRelatives(self.name, s=True)
-        print s_list
         for sp in s_list:
             for i in xrange(1, 1000):
                 num = '0' + str(i) if len(str(i)) == 1 else str(i)
                 if not cmds.objExists(pfx + num + '_shape'):
                     cmds.rename(sp, pfx + num + '_shape')
                     break
-
-
 
     def makeController(self, shapeType, size=1, offset=[0, 0, 0], orient="Y", pos='', posType='parent'):
         ctrl = cmds.curve(n=self.name, d=self.shapePresets(shapeType)['degree'],
