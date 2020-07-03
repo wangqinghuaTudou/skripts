@@ -49,7 +49,7 @@ def rivet(seurface='', edges=[], out = 'locator'):
     cmds.setAttr ( ".tg[0].tw", 1)
     cmds.setAttr ( ".a" , 0, 1, 0)
     cmds.setAttr ( ".u", 0, 0, 1)
-    for attr in [".v", ".tx", ".ty", ".tz", ".rx", ".ry", ".rz", ".sx", ".sy", ".sz"]: cmds.setAttr ( attr, k=False)
+    for attr in [".v", ".tx", ".ty", ".tz", ".rx", ".ry", ".rz", ".sx", ".sy", ".sz"]: cmds.setAttr (nameLocator+attr, k=False)
     cmds.connectAttr ( namePOSI + ".position",   nameLocator + ".translate")
     cmds.connectAttr ( namePOSI + ".n",   nameAC + ".tg[0].tt")
     cmds.connectAttr ( namePOSI + ".tv",   nameAC + ".wu")
