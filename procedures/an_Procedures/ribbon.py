@@ -13,9 +13,9 @@ from  an_Procedures.rivet import  rivet
 '''
              ribbon
 
-
 ikPointRigSys( )             -  создает гибкую цепочку типа рибона. 
-
+sortPolyFaceseLine()         -  возвращает последовательность фейсов от 0 
+faceToOppositEdges(face)     -  преобразует указанный фейс в противолежащие ребра
 '''
 
 def ikPointRigSys(pfx='r_stretchZone', jntNum=10, ctSize=1):
@@ -87,14 +87,32 @@ def rivetJntOnPlane(nPlane,  jntNum=15, pfx=''):
     if not pfx: pfx=chn(jntList[0]).sfxMinus()
     polySkin = cmds.nurbsToPoly (nPlane, n=pfx+'_pPlane',  mnd=1, ch=1, f=2, pt=1, pc=200, chr=0.9, ft=0.01, mel=0.001, d=0.1, ut=1, un=jntNum, vn=2, vt=1, uch=0, ucr=0, cht=0.2, es=0, ntr=0, mrt=0, uss=1)[0]
     rivetJnt=[]
-    for i in range (0, jntNum-1):
-        adges = cmds.polyInfo(polySkin+'.f['+str(i)+']', faceToEdge=True )[0].split(':')[1].split(' ')
-        edgeList = [x for x in  adges  if x and x != '\n']
-        rvt = rivet(polySkin, [edgeList[1], edgeList[3]], out="joint")
+    for i in sortPolyFaceseLine(geo):
+        adges = faceToOppositEdges(polySkin+'.f['+str(i)+']')
+        rvt = rivet(polySkin, [adges[0], adges[1]], out="joint")
         rivetJnt.append(rvt)
     rivetGrp = cmds.group(rivetJnt, n=pfx+'Rivet_grp')
     return rivetJnt, polySkin
     
-    
+def sortPolyFaceseLine(geo):
+    fNum = cmds.polyEvaluate(geo, f=True )
+    fDic ={}
+    for i in range(fNum):
+        adges = an_convertSliceToList(cmds.polyListComponentConversion(geo+'.f['+str(i)+']', toEdge=True ))
+        fDic[i]= [int(x.split('[')[1][:-1]) for x in adges ]
+    curF=0
+    fList=[]
+    for _ in range(fNum):
+        fList.append(curF)
+        c_val = set(fDic.pop(curF))
+        for f in  fDic.keys():
+            if c_val.intersection( set(fDic[f])): curF=f 
+    return fList  
  
+def faceToOppositEdges(face):
+    adges = an_convertSliceToList(cmds.polyListComponentConversion(face, toEdge=True ))
+    vert = an_convertSliceToList(cmds.polyListComponentConversion(adges[0], toVertex=True ))
+    adges2 = an_convertSliceToList(cmds.polyListComponentConversion(vert, toEdge=True ))
+    return [x.split('[')[1].split(']')[0] for x in adges2 if x in adges and x!=adges[0]]
+
  
