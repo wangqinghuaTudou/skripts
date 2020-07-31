@@ -25,15 +25,18 @@ import math, cPickle
     - an_killReferenceNamespace ()
 '''
 
+
 def an_convertSliceToList(pList): #convert   "pShape.vtx[0:3]"       to     [pShape.vtx[0], pShape.vtx[1],  pShape.vtx[2], pShape.vtx[3]] 
     output=[]
-    for pName in pList:
-        iRenge = pName.split(']')[0].split('[')[1] 
-        if ':' in iRenge:
-            for i in range ( int(iRenge.split(':')[0]), int(iRenge.split(':')[1])+1): output.append(pList[0].split('[')[0]+'['+str(i)+']' )
-        else:  output.append(pName)     
+    for pName in pList: 
+        if '.'  in pName:
+            iRenge = pName.split(']')[0].split('[')[1] 
+            if ':' in iRenge:
+                for i in range ( int(iRenge.split(':')[0]), int(iRenge.split(':')[1])+1): 
+                    output.append(pName.split('[')[0]+'['+str(i)+']' )
+            else:  output.append(pName)
+        else:  output.append(pName)    
     return output
-
 
 def an_delSys(ctrlObject, objList =[]):
     if objList: # If the list is not empty, the deleting system will create
