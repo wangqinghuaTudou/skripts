@@ -1,3 +1,4 @@
+# 02.09.2020 new functions copyWeightsFromObjects
 # 28.04.2020 new functions used
 # 11.12.2019 add buttons
 # 10.12.2019 add selektSkinJnts proc
@@ -29,9 +30,12 @@ def an_skinWeightManager():
     cmds.setParent ("..")
     cmds.button( label='Copy weights to vertex', command= 'copySkinToVertex()')
 
-    cmds.rowColumnLayout( numberOfColumns=2, columnWidth=[(1, 213), (2, 214)], columnSpacing=[(2,2),(3,2)], p=leauts[3], rowSpacing=[(2,2),(3,2)], ) 
+    cmds.rowColumnLayout( numberOfColumns=3, columnWidth=[(1, 142), (2, 142), (3, 142)], columnSpacing=[(2,2),(3,2),(3,2)], p=leauts[3], rowSpacing=[(2,2),(3,2)], ) 
     cmds.button( label='Copy and mirrow weights ', command= "copyAndMirrowWeights()" )
-    cmds.button( label='Copy weights', command= "copySkinToListObjects()" )
+    
+    cmds.button( label='Copy from several', command= "copyWeightsFromObjects()" )
+    
+    cmds.button( label='Copy to several', command= "copySkinToListObjects()" )
     cmds.setParent ("..")
     cmds.canvas(h=5)
 
@@ -74,7 +78,26 @@ def copySkinToVertex():
     copySkinToSelVertex(sourceObj, destVert)
 
 
+def copyWeightsFromObjects():
+    sGeo  = cmds.ls(sl=True)[:-1]
+    geo = cmds.ls(sl=True)[-1]
+    
+    if cmds.ls (cmds.listHistory (geo), type='skinCluster' ):
+        skCluster = cmds.ls (cmds.listHistory (geo), type='skinCluster' )[0]
+        cmds.skinCluster (skCluster, e=True,  ub=True ) 
+    
+    jntList = []
+    for each in sGeo:
+        skinCluster = cmds.ls (cmds.listHistory (each), type='skinCluster' )[0]
+        jnts = cmds.ls (cmds.listHistory (skinCluster, levels=1), type='transform')  ###   jnt
+        jntList+=jnts
+    
+    skCluster = cmds.skinCluster(jntList, geo, tsb=True, normalizeWeights=True)[0]  #skinning
+    cmds.select( sGeo+[geo]) 
+    cmds.copySkinWeights  ( noMirror=True, surfaceAssociation='closestPoint',  influenceAssociation='oneToOne')
+    
 
+ 
 
 
 

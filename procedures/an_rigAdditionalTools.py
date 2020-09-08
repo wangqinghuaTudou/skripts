@@ -1,6 +1,9 @@
 import maya.cmds as cmds
 from anProcedures import *
 
+"""   an_rigAdditionalTools   """
+
+
 def getSetCtShape(data={}):
     if data: 
         for ct in data.keys():  
@@ -72,8 +75,17 @@ def an_jntVisibility( function = ""):
                     cmds.connectAttr (switch+'.jntVis', each+".overrideVisibility")
         if function == "Hide": cmds.setAttr (switch+'.jntVis', 0)
         if function == "Show": cmds.setAttr (switch+'.jntVis', 1)
+
+
+def  mirrorSelCT():
+    for l_ct in  cmds.ls(sl=True):
+        if 'l_' in l_ct: 
+            r_ct = l_ct.replace('l_', 'r_')
+            ctrl(l_ct).mirrorShape(r_ct)
                             
+
 def an_ctShapeTool (function = ""):
+    
     if function == "UI":
         cmds.frameLayout( label='Controllers shape tools:', bgc =[0,0,0], cll=True  )
         cmds.rowColumnLayout( nc=5, columnWidth=[(1, 74), (2, 90), (3, 80), (4, 80), (5, 80)])
@@ -85,9 +97,14 @@ def an_ctShapeTool (function = ""):
         for each in xrange(2) :cmds.canvas()
         cmds.button(l='Parent curve' , c='parentCurveShape()')#2
         cmds.button(l='Select all CT' , c='selectAllCT()')#2
-        cmds.button(l='Mirror shape' , c='ctrl(cmds.ls(sl=1)[0]).mirrorShape(cmds.ls(sl=1)[1])' )#3
+        cmds.button(l='Mirror shape' , c='mirrorSelCT()' )#3
 
         for each in xrange(2) :cmds.setParent( '..' )
 
     if function == "get": getSetCtShape(an_saveLoadData(obgect = cmds.textField('RootTF', q=True, tx=True )))
-    if function == "save":  an_saveLoadData(getSetCtShape(), obgect = cmds.textField('RootTF', q=True, tx=True ))# save to obj                    
+    if function == "save":  an_saveLoadData(getSetCtShape(), obgect = cmds.textField('RootTF', q=True, tx=True ))# save to obj 
+    
+    
+
+    
+                       

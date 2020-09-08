@@ -24,8 +24,10 @@ def createBonesFromEdges (jntNum = 7):
    
     return res[0]
     
+#an_jntOnCurv(curveName='curve1', jntNum = 50, stretchable=True, pfx='rp1',  geo=True)
 
-def an_jntOnCurv(curveName, jntNum = 10, stretchable=True, pfx=''):
+
+def an_jntOnCurv(curveName, jntNum = 10, stretchable=True, pfx='', geo=False):
     pfx = curveName+'ChSys' if not pfx else pfx
     cmds.select (cl=True,  sym =True)
     if stretchable: #If the joints should be stretched.
@@ -45,8 +47,24 @@ def an_jntOnCurv(curveName, jntNum = 10, stretchable=True, pfx=''):
     for index, string in enumerate(range(jntNum+1)):
     		 jointName[index]= cmds.joint (r=True , n=pfx+str(index)+'_jnt', p= [cmds.arclen(curveName)/jntNum, 0, 0])
     		 if stretchable: cmds.connectAttr (scaleMDVnod+'.outputX',  jointName[index]+'.tx')
+    		 
+    if geo:
+        geo = cmds.polyCylinder( r=cmds.arclen(curveName)/jntNum/8, h=cmds.arclen(curveName),  sy= jntNum , sx=6, ax=[1, 0, 0])[0]
+        cmds.delete(cmds.pointConstraint(jointName[0],jointName[-1], geo))
+        cmds.skinCluster(jointName, geo, tsb=True, normalizeWeights=True)
+	 
     ikHandl = cmds.ikHandle  (n=pfx+'_ik', sol='ikSplineSolver',   ccv=False,  pcv=False,  sj=jointName[0], ee= jointName[-1], c=curveName)
     cmds.parent (jointName[0], curveName)
     if stretchable: an_delSys(ikHandl[0], objList =[jointName[0], jntPosMDVnod, scaleMDVnod, curvLength])
     else: an_delSys(ikHandl[0], objList =[jointName[0], ])
     return jointName, ikHandl
+    
+    
+
+
+
+
+
+
+
+

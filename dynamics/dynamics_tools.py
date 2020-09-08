@@ -1,14 +1,8 @@
 
 import sys, os
-vDirPath = '//dataServer/Project/backup_s3d/lib/setup/maya/maya_scripts_rfm3/rigging_tools/procedures/'
-if not  vDirPath in  list(sys.path): sys.path.insert(0, vDirPath)
-
-
-import maya.cmds as cmds
 from anProcedures import *
-
 import maya.cmds as cmds
-import os
+
 
 def dynamics_tools ():
     leyouts = an_turnBasedUi('dtls', title ='dynamics_tools',  stepsLabel =['playback_options', 'dynamic version', 'export alembic'])

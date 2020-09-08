@@ -6,14 +6,7 @@ import maya.mel as mm
 import os
 import sys
 from an_classNames import AnNames as chn
-
-vDirPath ='//dataServer/Project/backup_s3d/lib/setup/maya/maya_scripts_rfm3/rigging_tools/procedures/'
-system_paths = list(sys.path)
-if not vDirPath in system_paths:
-    sys.path.insert(0, vDirPath)
-
-
-
+ 
 '''
         an_classControllers()
 
