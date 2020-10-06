@@ -11,7 +11,7 @@ from an_classControllers import AnControllers as ctrl
 an_fkControllerss()          -   put controlers to plase and connect jnt to parent
 an_fkToJntDevider()          - 
 
-ikPointRigSys( ) 
+ 
 
 '''
 
@@ -32,5 +32,3 @@ def an_fkToJntDevider(ct, jnts):
         for jnt in jnts:
             cmds.connectAttr(mpdv+'.output'+d.upper(), jnt+'.rotate'+d.upper())
 
- 
- 

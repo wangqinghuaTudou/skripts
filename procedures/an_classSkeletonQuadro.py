@@ -9,7 +9,7 @@
 #self.printJntStructure()
 from an_classSkeleton import AnSkeleton
 from an_classNames import  AnNames
-from  anProcedures import  * 
+#from  anProcedures import  * 
 from an_classControllers import  AnControllers  as ctrl
 
 '''

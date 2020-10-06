@@ -1,87 +1,38 @@
-#self=AnNames()
-#self.getBodyJnt()
-#self.rigStructure(make=True)
-
-import maya.cmds as cmds
+import maya.cmds as mc
 import re
 
-"""
-        an_classNames
-        
-    metods: 
-        - unicName()
-        - divideName ()
-        - sfxMinus () 
-        - fixNonUniqueName()
-        - prefixes()
-        - suffixes()
-        - general()
-        - body()
-        - head()
-        - neck()
-        - bends()
-        - getArm()
-        - getLeg()
-        - getFingers()
-        - getWholeBody()
-        - getArmJnt()
-        - getLegJnt()
-        - getBodyJnt()
-        - rigStructure()
+class CharacterNames(object):
 
-        AnNamesQuadro ( AnNames ) class for Quadropid
-    metods: 
-        - getArm()
-        - getLeg()
-"""
-
-#nn = AnNames().unicName ("box", '_geo', char=True ) 
-#cmds.polyCube(n=nn[0])
-
-# AnNames().getLeg()
-# AnNames().getArm()  
-# AnNamesQuadro().getArm() 
-# AnNamesQuadro().getLeg()  
- 
-class AnNames(object):
     __prefixes = ['l_', 'r_', 'up_', 'dw_', 'fr_', 'bk_', 'mid_'] 
     __suffixes = ['_CT', '_jnt', '_bind', '_grp',  '_ori', '_con', '_geo', \
                   '_nurbs', '_proxy', '_match', '_crv', '_ik', '_mdv', '_scnt', \
-                  '_pma', '_adl', '_mdl', '_poci', '_pomi', '_posi', '_uc', '_dcm', \
+                  '_pma', 'adl', 'mdl', 'poci', 'pomi', 'posi', 'uc', 'dcm', \
                   '_set', '_loc', '_clstr', '_lttc', '_bs ', '_space', '_pvcnt', \
-                  '_eff', '_skin', '_ffd', '_cls', '_rbs', '_aux', '_bend', \
+                  '_eff', 'skin', 'ffd', 'cls', 'rbs', '_aux', '_bend', \
                   '_soft', '_bsLttc', '_pcnt', '_ocnt', '_parcnt', '_aimcnt', \
-                  '_dist', '_distDs', '_vprod', '_rhlp', '_tancnt', '_geocnt', \
+                  '_dist', '_distDs', 'vprod', 'rhlp', '_tancnt', '_geocnt', \
                   '_nrmcnt', '_popcnt']
     __general = ['switch', 'general', 'pivotOffset']  
-    __body = ['body', 'pelvis', 'waistIk', 'waist', 'torso', 'hip', 'hips', 'shoulders', 'spine']
+    __body = ['body', 'pelvis', 'waistIk', 'waist', 'torso', 'hip', 'hips', 'shoulders']
     __neck = [ 'neck', 'neckAdd' ]          
     __head = [ 'head', 'headAim' ]  
     __arm = ['elbowIk', 'handIk', 'upArm', 'foreArm', 'hand', 'shoulder']  
     __leg = ['kneeIk', 'footIk', 'upLeg', 'knee', 'foot', 'hip']
     __bends = ['upArmBend', 'armMidBend', 'foreArmBend', 'upLegBend', \
                'legMidBend', 'lowLegBend', 'neckBend']
-    __fingers = ['handClinch', 'thumb', 'index', 'middle', 'ring', 'pinky']                 
+    __fingers = ['handClinch', 'thumb', 'index', 'middle', 'ring', 'pinky']
+    
+    __folders = ['root', 'rig', 'skeleton', 'bridgeDrivers', 'rootSpaces', \
+                'faceRig', 'corrective', 'bridgeNoneScale','geometry', \
+                'bodyGeo', 'headGeo', 'clothGeo', 'dynamicGeo', 'geometryProxy', \
+                'bodyProxy', 'headProxy', 'geometryDynamic', 'correctivJnt' , 'rivet' ] 
+                  
     __armJnt = ['shoulder', 'upArm', 'foreArm', 'hand']    
     __legJnt = ['hip', 'upLeg', 'lowLeg', 'foot', 'toe'] 
-    
+      
     def __init__ (self, name=None, pfx=None):
         self.name = name
 
-
-    def unicName (self, name, sfx , num=False, char=False):  #return unik name
-        if char:
-            for i in range(65, 91):
-                if not cmds.objExists(name+chr(i)+sfx): return name+chr(i)+sfx, chr(i)
-        elif num:
-            for i in xrange(1,1000): 
-                    num = '0'+ str(i) if len(str(i))==1 else str(i)
-                    if not cmds.objExists(name+num+sfx): return name+num+sfx, num
-        else:# ecli nomer ne nuzhen
-            if not cmds.objExists(name+sfx): #esli imya v scene otcutstvuet, to mozhno ispol`zovat` ishodnoe
-                return name+sfx, '00'
-            else: return unicName ( name, sfx , num=True)
- 
     def divideName (self):
         pref = ''
         suff = ''
@@ -103,7 +54,7 @@ class AnNames(object):
         return  pfx+name  
 
     def fixNonUniqueName(self, hashes='##'):
-        if not cmds.objExists(self.name):  return self.name # if obj Unique return old name
+        if not mc.objExists(self.name):  return self.name # if obj Unique return old name
         # 1. Devaid name on:  txt, namber, sfx 
         devName = self.divideName()
         try: num = re.findall('(\d+)',  devName[1])[-1]#get seurs namber string 
@@ -112,22 +63,27 @@ class AnNames(object):
         sfx = devName[2]
         # 2. Set new num
         newName, num= txt+num+sfx, "0"
-        while cmds.objExists(newName):
+        while mc.objExists(newName):
             num = int(num) + 1
             strNewNum = '0'*(len(hashes)-len(str(int(num))))+str(int(num))
             newName = txt+strNewNum+sfx
         return  newName
 
+    @property
     def prefixes(self):
         return self.__prefixes
 
+    @property
     def suffixes(self):
         return self.__suffixes
 
+    @property
     def general(self):
         return [self.__general[0] + self.__suffixes[0],		                     # general_CT
             		self.__general[1] + self.__suffixes[0], 		             # pivotOffset_CT
             		self.__general[2] + self.__suffixes[0]]		                 # switch_CT
+
+    @property
     def body(self):
         return [self.__body[0] + self.__suffixes[0],		                     # body_CT
             		self.__body[6] + self.__suffixes[0],                         # hips_CT
@@ -135,15 +91,18 @@ class AnNames(object):
             		self.__prefixes[2] + self.__body[3] + self.__suffixes[0],    # up_waist_CT
             		self.__body[4] + self.__suffixes[0],                         # torso_CT
                     self.__body[7] + self.__suffixes[0]]                         # shoulders_CT
-
+                    
+    @property
     def head(self):
         return [    self.__head[0] + self.__suffixes[0],                         # head_CT
                     self.__head[1] + self.__suffixes[0]]                         # headAim_CT
 
+    @property
     def neck(self):
         return [    self.__neck[0] + self.__suffixes[0],      	                 # neck_CT
                     self.__neck[1] + self.__suffixes[0]]                         # neckAdd_CT        
          
+    
     def bends(self, side=''):
         return [    side + self.__bends[0] + self.__suffixes[0],                  # *_upArmBend_CT
                     side + self.__bends[1] + self.__suffixes[0],                  # *_armMidBend_CT
@@ -207,30 +166,13 @@ class AnNames(object):
             		side + self.__legJnt[4] + self.__suffixes[2],                 # *l_toe_bind
             		side + self.__legJnt[4] +"1"+ self.__suffixes[1]]             # *l_toe1_jnt
 
-    def getBodyJnt(self):
-        return [    self.__body[6]+'01'+ self.__suffixes[2],                 # hips01_bind
-              		self.__body[6]+'02'+ self.__suffixes[2],                 # hips02_bind     		
-              		self.__body[8]+'01'+ self.__suffixes[2],                 # spine01_bind 
-              		self.__body[8]+'02'+ self.__suffixes[2],                 # spine02_bind 
-              		self.__body[8]+'03'+ self.__suffixes[2],                 # spine03_bind 
-              		self.__body[8]+'04'+ self.__suffixes[2],                 # spine04_bind 
-              		self.__neck[0]+ self.__suffixes[2],                      # neck_bind 
-              		self.__head[0]+ self.__suffixes[2],                      # head_bind 
-              		self.__head[0]+'01'+ self.__suffixes[1], ]               # head01_jnt               		
-              		
-              		
+
     def rigStructure(self, query=False, make=False, fold=False, ch=False, p=False, rigFold=False):
         foldStr  = ['*root',                  
         '**'+           'geo',
+        '***'+               'geo_point',
         '***'+               'geo_low',
-        '****'+                   'sProxyBody_grp',
-        '****'+                   'sProxyHead_grp',
         '***'+               'geo_middle',
-        '****'+                   'proxyBody_grp',
-        '*****'+                       'loClothProxyGeo_grp',        
-        '*****'+                       'upClothProxyGeo_grp', 
-        '****'+                   'proxyHead_grp',    
-        '****'+                   'accessoriesProxyGeo_grp',
         '***'+               'geo_normal',
         '***'+               'geo_high',
         '***'+               'geo_ultra',
@@ -250,6 +192,9 @@ class AnNames(object):
         '*****'+                       'rigGeoHead_middle',      
         '**'+           'dyn',
         '***'+               'dyn_geo',
+        #'****'+                   'dyn_geoLow',
+        #'****'+                   'dyn_geoMiddle',
+        #'****'+                   'dyn_geoNormal',
         '***'+               'dyn_nodes',
         '**'+           'ren',]
         
@@ -258,9 +203,10 @@ class AnNames(object):
         if query and fold: return  foldersList ############ query folder names
         
         rigFolders    ={
-                        'rigBody':'rigBody',  
-                        'correctivJnt':'correctiv_grp',
-                        'rivets':'rivets_grp',
+                        'rigBody':foldersList[9],  
+                        'correctivJnt':foldersList[11],
+                        'bridgeNoneScale':foldersList[12],
+                        'rivets':foldersList[13],
                         }
         if query and rigFold: return  rigFolders ############ query rig folders names
         
@@ -286,12 +232,12 @@ class AnNames(object):
         ##  create folders
         if make:
             for fld in foldStrLevel:  
-                if not cmds.objExists(fld[0]):  cmds.group(n=fld[0], em=True
+                if not mc.objExists(fld[0]):  mc.group(n=fld[0], em=True
             )   
             for par, childs  in zip ([ x[0] for x in  foldStrLevel], childList):
                 if childs: 
                     for each in childs: 
-                        if not  cmds.listRelatives(each, p=True): cmds.parent (each, par)
+                        if not  mc.listRelatives(each, p=True): mc.parent (each, par)
             return [x[0] for x in foldStrLevel]
                 
         if query and ch and self.name:         ############ query childrens grp
@@ -300,23 +246,20 @@ class AnNames(object):
         if query and p and self.name:        ############ query parent grp
             for index, fld in enumerate(childList):  
                 if self.name in fld: return parentList[index]
-
-class AnNamesQuadro(AnNames):
-    def getArm(self, side=''):        #  insert *_elbowIkDw_CT to 2 position
-        bipList =    AnNames().getArm(side)      
-        dwElboeCt = AnNames(bipList[0]).divideName ()[0]+AnNames(bipList[0]).divideName ()[1]+'Dw'+AnNames(bipList[0]).divideName ()[2]
-        bipList.insert(1, dwElboeCt)
-        bipList.insert(6, AnNames().getFingers(side)[3][0].replace('0_', '_'))
-        return bipList  
-        
-    def getLeg(self, side=''):        #  insert *_kneeIk_CT to 2 position
-        bipList =    AnNames().getLeg(side)      
-        dwElboeCt = AnNames(bipList[0]).divideName ()[0]+AnNames(bipList[0]).divideName ()[1]+'Dw'+AnNames(bipList[0]).divideName ()[2]
-        bipList.insert(1, dwElboeCt)
-        bipList.insert(6, AnNames().getLegJnt(side)[-1].replace('1_jnt', '_CT'))
-        return bipList         
-       
     
+
+ 
+ 
+#object = CharacterNames()
+
+#CharacterNames('l_upArm_jnt').sfxMinus()
+
+
+#object.head  
+#object.getArm('l_') 
+
+#object.getWholeBody()    
+ 
 
 
 

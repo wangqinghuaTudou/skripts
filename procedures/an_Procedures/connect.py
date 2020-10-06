@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+from an_classNames import AnNames as AnNames 
+import maya.cmds as cmds
 """
-        connections
+        connect
       
 an_connectRigVis()         -  criete attr 'rigVis' , and connect all obj.v in objList
 an_connectReversAttr()     -  connect Attributes via revers node
@@ -20,10 +21,9 @@ def an_connectRigVis (ctrlObject, objList):
 	        cmds.connectAttr ( ctrlObject+'.rigVis',  each+".v") 
 	    if cmds.objExists(each+'.rigVis'):  
 	        cmds.connectAttr ( ctrlObject+'.rigVis',  each+'.rigVis') 
-
   
 def an_connectReversAttr (input, output):
-    prefix = chn(input.split('.')[0]).divideName()[0]+chn(input.split('.')[0]).divideName()[1]  
+    prefix = AnNames(input.split('.')[0]).sfxMinus () 
     revers =cmds.createNode ('reverse',  n = prefix+'Revers')
     cmds.connectAttr(input , revers+".inputX")
     cmds.connectAttr(  revers+".outputX", output)

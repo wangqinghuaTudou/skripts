@@ -1,5 +1,6 @@
 import maya.cmds as cmds
-from anProcedures import *
+from an_classControllers import AnControllers  as ctrl
+#from anProcedures import *
 
 """   an_rigAdditionalTools   """
 

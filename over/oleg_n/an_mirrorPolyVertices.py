@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#script for mirroring selected verticies on a single object (for example two combined gloves). Select verticies on source and run the an_mirrorPolyVertices()
 import maya.mel as mm
 import maya.cmds as cmds
 
