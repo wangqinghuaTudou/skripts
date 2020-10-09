@@ -92,11 +92,9 @@ def sortPolyFaceseLine(geo):
     
 def ribonUi(mode = 'Ui'):
     if mode =='Ui':
-        leyaut =  an_turnBasedUi('roup', title ='Ribbon creater',  stepsLabel =[], stepNum=False)
+        leyaut =  an_turnBasedUi('roup', title ='Ribbon creater',  stepsLabel =['Select the required joints and click create'], stepNum=False)
         cmds.setParent(leyaut)
         cmds.columnLayout( )
-        cmds.text ('         Select the required joints and click create', al='center' )
-        cmds.separator(height=6, style='none')
         cmds.textFieldGrp('pfxTFG', label='Prefix', text='roup' )
         cmds.intSliderGrp('jNumISG',  field=True, label='Joint number', minValue=1, maxValue=30, fieldMinValue=1, fieldMaxValue=2000, value=10 )  
         cmds.floatSliderGrp('cSizeFSG',  label='Controllers size', field=True, minValue=0.5, maxValue=3.0, fieldMinValue=0.0, fieldMaxValue=100.0, value=1 )   
