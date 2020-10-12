@@ -6,7 +6,7 @@ import math, cPickle
  
 
 '''
-        utelities
+        utilities
      
     - an_convertSliceToList()   
     - an_childCapture()          -  returns a list  between two specified objects (list), or a list of child objects if  one object (string) specified in the input.
