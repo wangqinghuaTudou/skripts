@@ -5,14 +5,12 @@
 
 import maya.cmds as cmds
 import maya.api.OpenMaya as om
-import  os, time
+import  os, re
 from an_Procedures.utilities import an_turnBasedUi
 from threading import Timer,Thread,Event
 
 
 global an_autoseveProcess, timer_object
-
-
 
 
 TIME_TO_SAVE = 2
@@ -56,9 +54,6 @@ def switch_ui():
 def do_save():
     timer_object.cancel()
     print ('avtorig act')
-    
-
-
 
 
 if not 'an_autoseveProcess' in globals(): an_autoseveProcess = True
@@ -68,16 +63,25 @@ timer_object.start()
 
 an_autoSave()
 
-#path = os.path.dirname(maya.cmds.file(q=True, sn=True))
+#
 #om.MGlobal.displayWarning('The argument must be 0 or 1.')
 
 
 
+def saveVersion():
+    filename = os.path.basename(maya.cmds.file(q=True, sn=True))
+    path = os.path.dirname(maya.cmds.file(q=True, sn=True))
+    num = re.compile('[A-Za-z0-9_]+_(\d{3})(?:.ma|.mb)').findall(filename)       # if number exist - get it
+    pfx = filename[:-7]   if num else filename[:-3]  
+    num= "%03d"%(int(num[-1])+1)  if num else '001'  # else get 001
+    cmds.file(rename=path+'/'+pfx+'_'+num+filename[-3:])
+    cmds.file(save=True)
 
 
 
 
 
+ 
 
 
 
