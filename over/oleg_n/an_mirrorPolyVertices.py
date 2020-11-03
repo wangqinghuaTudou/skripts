@@ -1,15 +1,10 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 #script for mirroring selected verticies on a single object (for example two combined gloves). Select verticies on source and run the an_mirrorPolyVertices()
 import maya.mel as mm
 import maya.cmds as cmds
-
-def an_convertSliceToList(pList):  # после всех тестов надо импортировать эту функцию из утелит 
-    output=[]
-    for pName in pList:
-        iRenge = pName.split(']')[0].split('[')[1] 
-        if ':' in iRenge:
-            for i in range ( int(iRenge.split(':')[0]), int(iRenge.split(':')[1])+1): output.append(pList[0].split('[')[0]+'['+str(i)+']' )
-        else:  output.append(pName)     
-    return output
+from  an_Procedures.utilities import an_convertSliceToList
 
 def an_mirrorPolyVertices(): 
     pList = an_convertSliceToList(cmds.ls(sl=1))
