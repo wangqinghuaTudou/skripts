@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -23,11 +22,13 @@ Good luck!!!
  version History
 *************************************************************************************************************************
 	v2.0
+-fix bag in  an_get_ct() 5.11.2020
 -working with chars and props
 -refactoring
 *************************************************************************************************************************
  Modify at your own risk
 """
+
 
 import maya.cmds as cmds
 import maya.mel as mm
@@ -53,8 +54,8 @@ def an_save_load_data(data = ""):
         with open(file_name, 'w' ) as f: return cPickle.dump(data, f)
 
 def an_get_ct(ctrl=''):
-    pfx = cmds.ls(sl=True)[0].split(':')[0] if not ctrl else ctrl.split(':')[0]
-    ctrls = [x for x in cmds.ls() if re.findall('^'+pfx+':\S+_CT$', x) and cmds.nodeType(x)== 'transform'] # sort controls by name and type
+    pfx = re.findall('[^\s]+:', cmds.ls(sl=True)[0])[0] if not ctrl else  re.findall('[^\s]+:', ctrl)[0] 
+    ctrls = [x for x in cmds.ls() if re.findall('^'+pfx+'\S+_CT$', x)    and cmds.nodeType(x)== 'transform'] # sort controls by name and type
     return ctrls   
 
 def an_copyPos():
@@ -69,7 +70,7 @@ def an_copyPos():
         except TypeError:  pass
     an_save_load_data(result)# save
 
-def an_pastePos(toSel=False): # if  toSel==True copy values only to selected objects
+def an_pastePos(toSel=False):
     objcts = cmds.ls(sl=True) 
     pfx = re.findall('[^\s]+:', objcts[0])[0] 
     data = an_save_load_data() 
@@ -79,8 +80,10 @@ def an_pastePos(toSel=False): # if  toSel==True copy values only to selected obj
                 if an_chek_attr(pfx+each[0], attr) and cmds.nodeType(pfx+each[0]) == "transform":
                     cmds.setAttr (pfx+each[0]+"."+attr, val)
 
+def an_pasteToSel(): 
+    an_pastePos(toSel=True)
 
-#an_pastePos(toSel=True) 
+#an_pastePos(toSel=True)
 
 #an_pastePos(toSel=False)
  
