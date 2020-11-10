@@ -1,6 +1,9 @@
 import maya.cmds as cmds
-from  anProcedures import  *
+from  an_Procedures.rivet import rivet
+from an_Procedures.utilities import an_convertSliceToList, an_turnBasedUi
 from an_classControllers import AnControllers  as ctrl
+import re
+
 
 def an_createControls():
     ctList = ['general', 'fk', 'sphere', 'switch', 'kross', 'circle',   'head', 'headAim',  'handIk',  'torso', 'shoulder', 'body', 'fkBody', 'legIk', 'curvedArrow']
@@ -23,10 +26,10 @@ def crCt():
     nameLocator=''
     if cmds.filterExpand (sm= 32):  # if eges selected
         list = cmds.filterExpand (sm= 32)
-        e1 =  list[0].split('[')[1].split(']')[0]
-        e2 =  list[1].split('[')[1].split(']')[0]
+        e1 = re.findall('e\[(\d+)\]', list[0])[0]  
+        e2 = re.findall('e\[(\d+)\]', list[1])[0]  
         nameObject =  list[0].split('.')[0]
-        nameLocator = an_rivet(nameObject, str(e1), str(e2)) 
+        nameLocator = rivet(nameObject, [e1, e2], 'locator') 
         shp = cmds.listRelatives(nameLocator, s=1)
         cmds.delete(shp)
         cmds.select(nameLocator)
@@ -40,14 +43,10 @@ def crCt():
         jnt = cmds.joint(n=name+'_jnt')
         ofsGrp = cmds.group(jnt, n=name+'Ofs_grp')
         cmds.parent(ofsGrp, ct.oriGrp)
-        
-        
         cmds.setAttr (ofsGrp+'.t', 0, 0, 0)
         cmds.setAttr (ofsGrp+'.r', 0, 0, 0)
-        
         for d in 't', 'r': 
             cmds.connectAttr(ct.name+'.'+d , jnt+'.'+d)
-    
     if nameLocator:
         cmds.parent(ct.oriGrp, nameLocator)
         
