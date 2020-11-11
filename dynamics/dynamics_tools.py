@@ -7,9 +7,7 @@ import maya.cmds as cmds
 def dynamics_tools ():
     leyouts = an_turnBasedUi('dtls', title ='dynamics_tools',  stepsLabel =['playback_options', 'dynamic version', 'export alembic'])
     playback_options(leyouts[0])
-
     dynamic_version (leyouts[1])
-    
     export_alembicUI(leyouts[2])
 
 
@@ -17,9 +15,9 @@ def dynamics_tools ():
 
 
 def playback_options(par):
-    def_st_val = cmds.playbackOptions(q=True,  min=True)-30
-    def_mid_val = cmds.playbackOptions(q=True,  min=True)
-    def_max_val = cmds.playbackOptions(q=True,  max=True)
+    def_st_val = -20 #cmds.playbackOptions(q=True,  min=True)-30
+    def_mid_val = 1#cmds.playbackOptions(q=True,  min=True)
+    def_max_val = cmds.playbackOptions(q=True,  max=True)+1
     cmds.rowColumnLayout('Layout', nc =4,  p=par)
     cmds.text('', al='left',  width= 140)
     cmds.textField('stField', tx= def_st_val )
