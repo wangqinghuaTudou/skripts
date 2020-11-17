@@ -19,7 +19,7 @@ def bendPlaneUi():
     cmds.separator   (h=2 )
     cmds.frameLayout('addLayout', label='Joint :',  lv=True, backgroundColor=[ 0, 0, 0 ], w= vWinWeight, marginWidth = 2)
     
-    cmds.textFieldButtonGrp ('TFBG_object', l="Prefix:",  bl="<<Add selected",
+    cmds.textFieldButtonGrp ('TFBG_object', l="Name:",  bl="<<Add selected",
         cw = [(1, 124), (2, 250)],  bc = "cmds.textFieldButtonGrp ('TFBG_object', e=True, tx=  AnNames(cmds.ls (sl=True)[0]).sfxMinus())" )
         
     cmds.intSliderGrp('ISGrp', label='Jnt num for prof:', cw = [(1, 124), (2, 20)], field=True, min=0, max=10,  v=0 ,  enable= True  )
@@ -59,9 +59,6 @@ def an_uiBlock(): # ui which  is inserted to global ui for the each target
         cmds.setParent( '..')
 
 def createPlane( ):
-
-
-
     csJntWeight = 0.05
     pflJntId = cmds.intSliderGrp('ISGrp', q=True, v=True)# number of the join that will give the base profile
     
@@ -78,7 +75,7 @@ def createPlane( ):
     
     pfx =cmds.textFieldButtonGrp ('TFBG_object', q=True, tx=True)
     
-    planeTmp = cmds.polyPlane( n=an_unicName (pfx, '_cp', num=True)[0],  sx=1, sy=len(jntList)-1)[0]
+    planeTmp = cmds.polyPlane( n=pfx ,  sx=1, sy=len(jntList)-1)[0]
     
     pointWeightList={} # set 0 val for all points
     skinJnts = reduce(lambda a,b: a+b, jntList)
