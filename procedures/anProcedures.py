@@ -265,7 +265,7 @@ def an_makeDynamicsCurve (vCurve):
     hairSys = cmds.listRelatives (hairSysShape, p=True)[0] 
     return dynCurve, folicle, hairSysShape
 
-"""
+
 def an_unicName (name, sfx , num=False, char=False):  #return unik name
     if char:
         print 42424
@@ -279,7 +279,7 @@ def an_unicName (name, sfx , num=False, char=False):  #return unik name
         if not cmds.objExists(name+sfx): #esli imya v scene otcutstvuet, to mozhno ispol`zovat` ishodnoe
             return name+sfx, '00'
         else: return an_unicName ( name, sfx , num=True)
-"""  
+
 
 
 def an_turnBasedUi(sfx, title ='',  stepsLabel =[]):
