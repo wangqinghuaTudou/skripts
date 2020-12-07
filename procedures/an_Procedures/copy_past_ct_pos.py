@@ -22,6 +22,8 @@ Good luck!!!
  version History
 *************************************************************************************************************************
 	v2.0
+-add tempfile module
+-fix bag whith non referensed controls
 -fix bag in  an_get_ct() 5.11.2020
 -working with chars and props
 -refactoring
@@ -31,9 +33,10 @@ Good luck!!!
 
 
 import maya.cmds as cmds
-import maya.mel as mm
-import cPickle, re
-
+import cPickle 
+import tempfile
+import re
+import os
 
 def an_chek_attr( obj, attr):
     attr_obg_existence = cmds.objExists(obj+'.'+attr)                                              # test attr and obg existence	
@@ -43,19 +46,27 @@ def an_chek_attr( obj, attr):
     return all([attr_obg_existence, is_attr_unlocked, is_not_connected])
 
 def an_kill_ns(seursNane): 
-    out = seursNane.split(":")[-1]  if ":" in seursNane else v_seursNane
+    out = seursNane.split(":")[-1]  if ":" in seursNane else seursNane
     return out
 
 def an_save_load_data(data = ""):
-    file_name = mm.eval("getenv (\"HOME\")")+'/tmp.dat'
-    if not data: #if not data in function load mode
-        with open(file_name, 'r' ) as f: return cPickle.load(f)
+    file_path = os.path.join(tempfile.gettempdir(), 'pos_from_script.data')
+    #if not data in function load mode
+    if not data: 
+        with open(file_path, 'r' ) as f: return cPickle.load(f)
     else: 
-        with open(file_name, 'w' ) as f: return cPickle.dump(data, f)
+        with open(file_path, 'w' ) as f: return cPickle.dump(data, f)
+
+def an_get_pfx(obj):
+    pfx = re.findall('^[0-9A-Za-z_]+:', obj)
+    pfx =  pfx[0] if pfx else ''
+    return pfx
 
 def an_get_ct(ctrl=''):
-    pfx = re.findall('[^\s]+:', cmds.ls(sl=True)[0])[0] if not ctrl else  re.findall('[^\s]+:', ctrl)[0] 
-    ctrls = [x for x in cmds.ls() if re.findall('^'+pfx+'\S+_CT$', x)    and cmds.nodeType(x)== 'transform'] # sort controls by name and type
+    #pfx for geting only one object
+    ctrl = ctrl or cmds.ls(sl=True)[0]
+    pfx = an_get_pfx(ctrl)
+    ctrls = [x for x in cmds.ls() if re.findall('^'+pfx+'[0-9A-Za-z_]+_CT$', x) and cmds.nodeType(x)== 'transform'] # sort controls by name and type
     return ctrls   
 
 def an_copyPos():
@@ -72,7 +83,7 @@ def an_copyPos():
 
 def an_pastePos(toSel=False):
     objcts = cmds.ls(sl=True) 
-    pfx = re.findall('[^\s]+:', objcts[0])[0] 
+    pfx = an_get_pfx(objcts[0])
     data = an_save_load_data() 
     data = [x for x in data if pfx+x[0] in objcts ] if toSel else data
     for each  in data:
@@ -82,6 +93,8 @@ def an_pastePos(toSel=False):
 
 def an_pasteToSel(): 
     an_pastePos(toSel=True)
+
+
 
 #an_pastePos(toSel=True)
 
