@@ -13,9 +13,6 @@ def an_transferSkin():                                                          
     cmds.menuItem( label='Load set', c= 'loadSaveSet("load")')
     cmds.menuItem( label='Save set', c= 'loadSaveSet("save")')
     cmds.menuItem( label='Load preset', c= 'loadPreSet()')    
-    
-    
-    
     cmds.columnLayout( )
     cmds.separator   (h=2 )
     cmds.frameLayout( label='Working geometry:',  lv=True, backgroundColor=[ 0, 0, 0 ], w= 427, marginWidth = 2)
@@ -121,7 +118,7 @@ def an_getListUi( ):
         twJoint = cmds.ls (cmds.listHistory (twistClusterName, levels=1), type='transform')  ###   jnt tw
         copySkinClaster = cmds.skinCluster(skinGeoCopy,  twJoint,  tsb=True,  ug=True, dr=4, ps=False,  rui=False,  mi=5,  omi=False,  nw=True)[0]
         cmds.copySkinWeights( sourceSkin=twistClusterName, destinationSkin=copySkinClaster, noMirror=True, sa="closestPoint" )
-        jntTwWeightDic = getSkinJntAndWeight(skinGeoCopy)     # get twist weiht for each couple
+        jntTwWeightDic = getSkin(skinGeoCopy)     # get twist weiht for each couple
         cmds.skinCluster(copySkinClaster,   e=True, ub=True )
         cmds.delete (skinGeoCopy)
         output.append([twGeo, skinJnt, jntTwWeightDic])
@@ -134,7 +131,7 @@ def delTwFromSkin ():
 
     objList = an_getListUi()                                                              # get  couples - twGeo and jnt
     skinGeo = cmds.textFieldButtonGrp ('TFBG_SkinGeo', q=True,tx=True)                    # skin geo name
-    jntWeightDic = getSkinJntAndWeight(skinGeo)                                           # get skin jnt and weight list
+    jntWeightDic = getSkin(skinGeo)                                           # get skin jnt and weight list
     skinClusterName =  cmds.ls (cmds.listHistory (skinGeo, pdo=1), type='skinCluster')[0] # claster
     pIdList = range(cmds.getAttr (skinGeo + ".cp", size=True ))
 
@@ -157,7 +154,7 @@ def delTwFromSkin ():
         out[skinJnt] = rez
 
     cmds.skinCluster(skinClusterName,   e=True, ub=True )
-    setSkinAndWeight ( skinGeo,  out )
+    setSkin ( skinGeo,  out )
     print ""
 
 
@@ -167,7 +164,7 @@ def addTwToSkin ():
     objList = an_getListUi()                                                              # get  couples - twGeo and jnt
 
     skinGeo = cmds.textFieldButtonGrp ('TFBG_SkinGeo', q=True,tx=True)                    # skin geo name
-    jntWeightDic = getSkinJntAndWeight(skinGeo)                                           # get skin jnt and weight list
+    jntWeightDic = getSkin(skinGeo)                                           # get skin jnt and weight list
     skinClusterName =  cmds.ls (cmds.listHistory (skinGeo, pdo=1), type='skinCluster')[0] # claster
     pIdList = range(cmds.getAttr (skinGeo + ".cp", size=True ))                           # list of point id
 
@@ -185,51 +182,9 @@ def addTwToSkin ():
             out[twJnt]= rez
 
     cmds.skinCluster(skinClusterName,   e=True, ub=True )
-    setSkinAndWeight ( skinGeo,  out )
+    setSkin ( skinGeo,  out )
     print ""
 
 
 
 
-######################################################################
-
-"""
-def setSkinAndWeight ( objectName,  weightList):
-    jnt=[]
-    for x in  weightList.keys( ):  jnt.insert(0, x) if  cmds.objectType(x)== 'joint'  else  jnt.append( x) # sort
-
-    newSkinClusterName = cmds.skinCluster(jnt[0], objectName, tsb=True, normalizeWeights=True)[0]  #skinning
-    cmds.setAttr (newSkinClusterName+".useComponents", 1)
-    cmds.skinCluster(newSkinClusterName,   e=True, useGeometry=True, addInfluence=jnt[1:])
-    sizeArray = cmds.getAttr (objectName + ".cp", size=True ) # get point number
-
-    for i in  range(len(jnt)):
-        for id in range(sizeArray):
-            cmds.setAttr (newSkinClusterName + ".weightList[" +str(id)+ "].w[" + str(i)+ "]", weightList[jnt[i]][id]  )
-
-
-
-def getSkinJntAndWeight( objectName):
-    skinClusterName =  cmds.ls (cmds.listHistory (objectName, pdo=1), type='skinCluster')[0]    ### if claster sel
-    history = cmds.listHistory (objectName)
-    clustersName = cmds.ls (history, type='skinCluster' )
-    skinClusterSetName = cmds.listConnections (skinClusterName, type='objectSet' )
-    jointName = cmds.ls (cmds.listHistory (skinClusterName, levels=1), type='transform')  ###   jnt
-
-    weightList = {}
-    jointIndex, skinClusterIndex, skinClusterConnect, skinClusterConnectPart = [], '', '', ''  # get jnt index and weight
-    sizeArray = cmds.getAttr (objectName + ".cp", size=True )
-
-    for i in xrange(len(jointName)):
-        skinClusterConnect = cmds.listConnections (jointName[i] + ".worldMatrix", type='skinCluster', plugs=True )
-        flag = 0
-        for skinClusterIndex  in xrange(len(skinClusterConnect)):
-            skinClusterConnectPart =  skinClusterConnect[skinClusterIndex].split("[")
-            if skinClusterName + ".matrix" == skinClusterConnectPart[0] :
-    			flag = 1
-    			break
-        jointIndex = skinClusterConnectPart[1][:-1]
-        weightList[jointName[i]] = cmds.getAttr (skinClusterName + ".weightList[0:" + str(sizeArray - 1) + "].w[" + jointIndex + "]")
-    return weightList
-
-"""
