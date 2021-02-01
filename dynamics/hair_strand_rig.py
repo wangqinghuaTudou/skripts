@@ -5,6 +5,8 @@ import functools
 import maya.cmds as cmds
 import logging
 from an_classControllers import AnControllers
+from an_Procedures.joints import jntOnCurvNonSpline
+from an_Procedures.connect import an_connectRigVis
 
 ABOUT_SCRIPT = "\n" \
                "Latest updates:                \n" \
@@ -28,13 +30,13 @@ MAX_VERTEX_NUM = 40
 DEFAULT_VERTEX_NUM = 4
 MAX_JOINT_NUM = 40
 DEFAULT_JOINT_NUM = 12
-POINT_NUM_IN_DYN_CONSTRAINT = 3
+POINT_NUM_IN_DYN_CONSTRAINT = 2
 
 class HairStrand_UI(QMainWindow):
     def __init__(self):
         super(HairStrand_UI, self).__init__()
         # Window
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setWindowTitle("Hair strand rigging system")
         self.centralwidget = QWidget(self)
         self.setCentralWidget(self.centralwidget)
@@ -144,7 +146,10 @@ class HairStrandRig(HairStrand_UI):
             self.building_base_curve()
             self.building_dynamic_curve()
             self.fk_dynamics_mix_system()
-
+            self.add_skin_joints()
+            
+            an_connectRigVis (self.rig_grp, [self.input_curve, self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.loc,])
+            print (self.rig_grp, self.input_curve, self.dyn_curve)
     def get_data_from_ui(self):
         self.prefx = self.pfx_lineEdit.text()
         if not self.prefx:
@@ -197,7 +202,7 @@ class HairStrandRig(HairStrand_UI):
         cmds.parent(self.base_curve, self.rig_grp)
 
     def building_dynamic_curve(self):
-        self.input_curve = cmds.duplicate(name=self.prefx + 'Input_crv', inputConnections=True)
+        self.input_curve = cmds.duplicate(name=self.prefx + 'Input_crv', inputConnections=True)[0]
         
         mm.eval('makeCurvesDynamic 2 { "0", "0", "1", "1", "0"};')
         crv_shape = cmds.listRelatives(self.input_curve, shapes=True)[1]
@@ -208,14 +213,14 @@ class HairStrandRig(HairStrand_UI):
         dyn_curve_shape = cmds.connectionInfo(folShape + ".outCurve", destinationFromSource=True)[0].split('.')[0]
         self.dyn_curve = cmds.listRelatives(dyn_curve_shape, parent=True)[0]
         self.hair_sys_shape = cmds.connectionInfo(folShape + ".outHair", destinationFromSource=True)[0].split('.')[0]
-        hair_sys = cmds.listRelatives(self.hair_sys_shape, parent=True)[0]
-        dyn_curve_grp = cmds.listRelatives(self.dyn_curve, parent=True)[0]
+        self.hair_sys = cmds.listRelatives(self.hair_sys_shape, parent=True)[0]
+        self.dyn_curve_grp = cmds.listRelatives(self.dyn_curve, parent=True)[0]
         self.dyn_curve = cmds.rename(self.dyn_curve, self.prefx + 'Dynamics_crv')
         cmds.select(self.dyn_curve + '.cv[0:{}]'.format(POINT_NUM_IN_DYN_CONSTRAINT))
         dynamicConstraintShape = mm.eval('createNConstraint transform 0;')[0]
-        dyn_constraint = cmds.listRelatives(dynamicConstraintShape, parent=True)[0]
-        cmds.parentConstraint(self.fk_grp, dyn_constraint)
-        cmds.parent(hair_sys, dyn_curve_grp, dyn_constraint, self.rig_grp)
+        self.dyn_constraint = cmds.listRelatives(dynamicConstraintShape, parent=True)[0]
+        cmds.parentConstraint(self.fk_grp, self.dyn_constraint)
+        cmds.parent(self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.rig_grp)
 
     def fk_dynamics_mix_system(self):
         self.controls[0].addDevideAttr()
@@ -229,7 +234,14 @@ class HairStrandRig(HairStrand_UI):
                                     origin="world",
                                     name=self.prefx + 'blendShape')[0]
         cmds.connectAttr(self.controls[0].name + ".fk_dyn_mix", bldShape + "." + self.dyn_curve)
-
+        
+        
+    def add_skin_joints(self):
+        self.loc, self.jointsNames, skin_jnt_grp = jntOnCurvNonSpline(self.base_curve, self.joint_number, self.prefx)
+        cmds.parent(skin_jnt_grp, self.rig_grp)
+        cmds.parent(self.loc, self.controls[0].name)
+        an_connectRigVis (self.rig_grp, self.jointsNames)
+        
     def delete_rig(self):
         print("delete_rig")
 
