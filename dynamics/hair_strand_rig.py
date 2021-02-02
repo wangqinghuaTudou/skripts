@@ -127,12 +127,10 @@ class HairStrand_UI(QMainWindow):
         self.verticalLayout.addWidget(self.option_box)
 
     def __buttons(self):
-        self.buttons_layout = QHBoxLayout()
-        self.delete_button = QPushButton("Delete dynanmics sistem")
-        self.buttons_layout.addWidget(self.delete_button)
-        self.delete_button.clicked.connect(self.delete_rig)
+        self.buttons_layout = QHBoxLayout()  
         self.create_button = QPushButton("Create dynanmics sistem")
-        self.buttons_layout.addWidget(self.create_button)
+        self.buttons_layout.addWidget(self.create_button, 0, Qt.AlignRight)
+        self.create_button.setMaximumSize(QSize(200, 30))
         self.verticalLayout.addLayout(self.buttons_layout)
         self.create_button.clicked.connect(self.create_rig)
 
@@ -147,9 +145,7 @@ class HairStrandRig(HairStrand_UI):
             self.building_dynamic_curve()
             self.fk_dynamics_mix_system()
             self.add_skin_joints()
-            
             an_connectRigVis (self.rig_grp, [self.input_curve, self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.loc,])
-            print (self.rig_grp, self.input_curve, self.dyn_curve)
     def get_data_from_ui(self):
         self.prefx = self.pfx_lineEdit.text()
         if not self.prefx:
@@ -219,7 +215,7 @@ class HairStrandRig(HairStrand_UI):
         cmds.select(self.dyn_curve + '.cv[0:{}]'.format(POINT_NUM_IN_DYN_CONSTRAINT))
         dynamicConstraintShape = mm.eval('createNConstraint transform 0;')[0]
         self.dyn_constraint = cmds.listRelatives(dynamicConstraintShape, parent=True)[0]
-        cmds.parentConstraint(self.fk_grp, self.dyn_constraint)
+        cmds.parentConstraint(self.controls[0].name, self.dyn_constraint)
         cmds.parent(self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.rig_grp)
 
     def fk_dynamics_mix_system(self):
@@ -242,9 +238,6 @@ class HairStrandRig(HairStrand_UI):
         cmds.parent(self.loc, self.controls[0].name)
         an_connectRigVis (self.rig_grp, self.jointsNames)
         
-    def delete_rig(self):
-        print("delete_rig")
-
 
 def hair_strand_rig():
     global dyn_win
