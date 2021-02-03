@@ -9,10 +9,11 @@ from an_Procedures.joints import jntOnCurvNonSpline
 from an_Procedures.connect import an_connectRigVis
 
 ABOUT_SCRIPT = "\n" \
-               "Latest updates:                \n" \
-               "27.01.2021    -start writing   \n" \
-               "                               \n" \
-               "Created by Andrey Belyaev      \n" \
+               "Latest updates:                               \n" \
+               "3.02.2021     -add attribut prefix to control \n" \
+               "27.01.2021    -start writing                  \n" \
+               "                                              \n" \
+               "Created by Andrey Belyaev                     \n" \
                "andreikin@mail.ru"
 
 HELP_LABEL = "Select a chain of bones (more than two joints) on the basis of which will be\n" \
@@ -183,6 +184,9 @@ class HairStrandRig(HairStrand_UI):
             else:
                 cmds.parent(ctrl.oriGrp, self.controls[i - 1].name)
             cmds.parentConstraint(ctrl.name, jnt)
+            # add attribute to determine whether the controller belongs to dynamic system 
+            cmds.addAttr( ctrl.name,  longName='prefix', dt='string', keyable = False )
+            cmds.setAttr (ctrl.name+".prefix", self.prefx , type="string" ) 
 
     def building_base_curve(self):
         point_position = []
@@ -199,17 +203,18 @@ class HairStrandRig(HairStrand_UI):
 
     def building_dynamic_curve(self):
         self.input_curve = cmds.duplicate(name=self.prefx + 'Input_crv', inputConnections=True)[0]
-        
         mm.eval('makeCurvesDynamic 2 { "0", "0", "1", "1", "0"};')
         crv_shape = cmds.listRelatives(self.input_curve, shapes=True)[1]
-        # getting names of all dynamics objects
+        # getting names of all dynamics objects and rename it
         follicle = cmds.listConnections(crv_shape + ".local")[0]
+        follicle = cmds.rename(follicle, self.prefx + '_follicle')
         cmds.setAttr(follicle + ".pointLock", 0)
         folShape = cmds.listRelatives(follicle, shapes=True)[0]
         dyn_curve_shape = cmds.connectionInfo(folShape + ".outCurve", destinationFromSource=True)[0].split('.')[0]
         self.dyn_curve = cmds.listRelatives(dyn_curve_shape, parent=True)[0]
         self.hair_sys_shape = cmds.connectionInfo(folShape + ".outHair", destinationFromSource=True)[0].split('.')[0]
         self.hair_sys = cmds.listRelatives(self.hair_sys_shape, parent=True)[0]
+        self.hair_sys = cmds.rename(self.hair_sys, self.prefx + '_hairSystem')
         self.dyn_curve_grp = cmds.listRelatives(self.dyn_curve, parent=True)[0]
         self.dyn_curve = cmds.rename(self.dyn_curve, self.prefx + 'Dynamics_crv')
         cmds.select(self.dyn_curve + '.cv[0:{}]'.format(POINT_NUM_IN_DYN_CONSTRAINT))
