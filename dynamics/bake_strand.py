@@ -1,13 +1,10 @@
-
-
-
-
 from PySide2.QtCore import *
 from PySide2.QtGui import *
 from PySide2.QtWidgets import *
 import maya.cmds as cmds
 import re
 import functools
+import logging
 
 ABOUT_SCRIPT = "\n" \
                "Latest updates:                \n" \
@@ -32,14 +29,13 @@ class BakeStrand_UI(QMainWindow):
         super(BakeStrand_UI, self).__init__()
         # Window
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
-        self.setWindowTitle("Hair strand rigging system")
+        self.setWindowTitle("Bake strand system")
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
         self.verticalLayout = QVBoxLayout(self.central_widget)
         self.__menu_bar()  # help and About script windows
         self.__libel()  # text on top
-        self.__option_box()
-        #self.__buttons()
+        self.__buttons()
 
     def __menu_bar(self):
         menuBar = QMenuBar()
@@ -68,94 +64,64 @@ class BakeStrand_UI(QMainWindow):
         self.help_label = QLabel(HELP_LABEL)
         self.verticalLayout.addWidget(self.help_label)
 
-
-    def __option_box(self):
-        
-        self.option_box = QGroupBox("Strand dynamic options:")
-        self.option_box_layout = QVBoxLayout(self.option_box)
-        
-        # slider  
-        self.curve_hLayout = QHBoxLayout()
-        self.curve_label = QLabel("Strand stiffness :")
-        self.curve_hLayout.addWidget(self.curve_label)
-        self.curve_horizontal_slider = QSlider()
-        self.curve_horizontal_slider.setMinimum(0)
-        self.curve_horizontal_slider.setMaximum(10)
-        self.curve_horizontal_slider.setSliderPosition(0)
-        self.curve_horizontal_slider.setOrientation(Qt.Horizontal)
-        self.curve_hLayout.addWidget(self.curve_horizontal_slider)
-        
-        self.curve_spin_box = QSpinBox()
-        self.curve_spin_box.setMinimum(0)
-        self.curve_spin_box.setMaximum(10)
-        self.curve_spin_box.setValue(0)
-        self.curve_hLayout.addWidget(self.curve_spin_box)
-        self.curve_horizontal_slider.valueChanged.connect(self.curve_spin_box.setValue)
-        self.curve_spin_box.valueChanged.connect(self.curve_horizontal_slider.setValue)
-        
-        self.stiffness_button = QPushButton(" Set ")
-        self.curve_hLayout.addWidget(self.stiffness_button)
-        
-        self.option_box_layout.addLayout(self.curve_hLayout)
-        self.verticalLayout.addWidget(self.option_box)
-        
-"""      
     def __buttons(self):
         self.button_layout = QGridLayout()
-        self.button_layout.setSpacing(2)
+        self.button_layout.setSpacing(3)
         self.bake_selaction_button = QPushButton("Bake_selaction")
         self.button_layout.addWidget(self.bake_selaction_button, 0, 0, 1, 1)
-        self.bake_selaction_button.clicked.connect(self.bake_selaction)
-        
+        self.bake_selaction_button.clicked.connect(functools.partial(self.button_comand, True, True))
         self.unbake_selaction_button = QPushButton("Unbake_selaction")
         self.button_layout.addWidget(self.unbake_selaction_button, 1, 0, 1, 1)
-        self.unbake_selaction_button.clicked.connect(self.unbake_selaction)
-        
+        self.unbake_selaction_button.clicked.connect(functools.partial(self.button_comand, False, True))
         self.bake_all_button = QPushButton("Bake_all")
         self.button_layout.addWidget(self.bake_all_button, 0, 1, 1, 1)
-        self.bake_all_button.clicked.connect(self.bake_all)
-        
+        self.bake_all_button.clicked.connect(functools.partial(self.button_comand, True, False))
         self.unbake_all_button = QPushButton("Unbake_all")
         self.button_layout.addWidget(self.unbake_all_button, 1, 1, 1, 1)
-        self.unbake_all_button.clicked.connect(self.unbake_all)
+        self.unbake_all_button.clicked.connect(functools.partial(self.button_comand, False, False))
+        self.verticalLayout.addLayout(self.button_layout)
         
-        self.option_box_layout.addLayout(self.button_layout)
+    def button_comand(self, is_bake, is_to_selection):
+        ctrl = self.__get_selection()
+        if is_to_selection:
+            dynamics_curve = self.get_selaction_dynamics_controller(ctrl)
+            if not dynamics_curve:
+                cmds.error("Selected object is not part of the dynamic system !")
+            if is_bake:
+                print("bake_selaction")
+                self.bake_curves(dynamics_curve)
+            else:
+                print("unbake_selaction")
+        else:
+            dynamics_curve = self.get_dynamics_curves(ctrl)
+            if is_bake:
+                print("bake_all")
+                self.bake_curves(dynamics_curve)
+            else:
+                print("unbake_all")
+        print ctrl
+        print dynamics_curve
         
-        self.verticalLayout.addWidget(self.option_box)
 
-""" 
-"""  
+ 
+    def __get_selection (self):
+        try:
+            return cmds.ls(sl=True)[0]
+        except IndexError:
+            cmds.error("Necessary to select character`s controller!")
    
-    def is_selaction_dynamics_controller():
-        selection = cmds.ls(sl=True)[0]
-        prefix = re.sub(r"\d{1,3}_CT$", "", selection)       
-    
-    
-    def bake_selaction(self):
-        selection = cmds.ls(sl=True)[0]
-        prefix = re.sub(r"\d{1,3}_CT$", "", selection)
-        curve_list = self.get_dynamics_curves(selection)
-        print("bake_selaction")
+    def get_selaction_dynamics_controller(self, ctrl):
+        if cmds.objExists(ctrl+".prefix"):
+            pfx_attr = cmds.getAttr(ctrl+".prefix")
+            name_space = ctrl.split(pfx_attr)[0]
+            return [name_space+pfx_attr+"Dynamics_crv",]
+        else: []
 
-    def unbake_selaction(self):
-        print("unbake_selaction")
-
-    def bake_all(self):
-        print("bake_all")
-        curve_list = self.get_dynamics_curves(cmds.ls(sl=True)[0])
-        self.bake_curves(curve_list)
-        
-    def unbake_all(self):
-        print("unbake_all")
-        
     def bake_curves(self, curve_list):
         cmds.select(curve_list)
-        
-    def get_referense_prefix(self, obj):
-        return re.findall(r"(^[A-Za-z0-9_]*):", obj)[0] 
 
-    def get_dynamics_curves(self, obj):
-        char_pfx = self.get_referense_prefix(obj)
+    def get_dynamics_curves(self, ctrl):
+        char_pfx = re.findall(r"(^[A-Za-z0-9_]*):", ctrl)[0] 
         all_follicle = [x for x in cmds.ls(type='follicle') if char_pfx+":" in x]
         dyn_curves = []
         for follicle in all_follicle:
@@ -163,7 +129,16 @@ class BakeStrand_UI(QMainWindow):
             dyn_curve = cmds.listRelatives(dyn_curve_shape, parent=True)[0]
             dyn_curves.append(dyn_curve)
         return dyn_curves
-"""
+
+ 
+
+
+
+
+
+
+
+
 
 def bake_strand():
     global bake_win
@@ -180,20 +155,7 @@ def bake_strand():
 bake_strand()
 
 
-
-"""
-def get_referense_prefix(obj):
-    return re.findall(r"(^[A-Za-z0-9_]*):", obj)[0] 
-    
-def get_dynamics_curves(obj):
-    char_pfx = get_referense_prefix(obj)
-    all_follicle = [x for x in cmds.ls(type='follicle') if char_pfx+":" in x]
-    dyn_curves = []
-    for follicle in all_follicle:
-        dyn_curve_shape = cmds.connectionInfo(follicle + ".outCurve", destinationFromSource=True)[0].split('.')[0]
-        dyn_curve = cmds.listRelatives(dyn_curve_shape, parent=True)[0]
-        dyn_curves.append(dyn_curve)
-    return dyn_curves
+ 
 
 #obj = cmds.ls(sl=True)[0]
 #cmds.select(get_dynamics_curves(obj))
@@ -201,7 +163,7 @@ def get_dynamics_curves(obj):
 
 #___________________________________________________________________________
 
-
+"""
 def anim_to_bsh(geo, start, end, del_blds=True, bake_duplicate = False):
 
     mm.eval("currentTime {} ; ".format(start))
