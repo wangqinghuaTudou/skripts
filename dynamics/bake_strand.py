@@ -119,6 +119,12 @@ class BakeStrand_UI(QMainWindow):
 
     def bake_curves(self, curve_list):
         cmds.select(curve_list)
+        min_val, max_val = self.get_time_range()
+        self.set_time_range(min_val-20, max_val)
+        ctrl = self.__get_selection()
+        nuclius = self.get_nuclius(ctrl)
+        
+        
 
     def get_dynamics_curves(self, ctrl):
         char_pfx = re.findall(r"(^[A-Za-z0-9_]*):", ctrl)[0] 
@@ -130,15 +136,24 @@ class BakeStrand_UI(QMainWindow):
             dyn_curves.append(dyn_curve)
         return dyn_curves
 
- 
+    def get_time_range(self):
+        max_val = cmds.playbackOptions(q=True,  max=True)
+        min_val = cmds.playbackOptions(q=True,  min=True)
+        return min_val, max_val
 
+    def set_time_range(self, min_val, max_val):
+        cmds.playbackOptions(e=True,  min=min_val)
+        cmds.playbackOptions(e=True,  max=max_val)
+        cmds.currentTime( min_val, edit=True )
+    
+    def get_nuclius(self, ctrl):
+        char_pfx = re.findall(r"(^[A-Za-z0-9_]*):", ctrl)[0] 
+        nuclius = [x for x in cmds.ls(type='nucleus') if char_pfx+":" in x][0]
+        return nuclius
 
-
-
-
-
-
-
+#cmds.currentTime(q=1)
+#cmds.playbackOptions( e=True, max = 340)
+#cmds.currentTime( 350, edit=True )
 
 def bake_strand():
     global bake_win
@@ -163,7 +178,7 @@ bake_strand()
 
 #___________________________________________________________________________
 
-"""
+ 
 def anim_to_bsh(geo, start, end, del_blds=True, bake_duplicate = False):
 
     mm.eval("currentTime {} ; ".format(start))
@@ -192,14 +207,19 @@ def del_bsp(bsp):
     cmds.delete(bsp)
     #cmds.setAttr ("liza_ogurcy:hairSystemShape1.simulationMethod", 3)
     cmds.setAttr ("liza_ogurcy:nucleus1.enable", 1)
+ 
 """
+0 dil old bland shape
+1 get time and set time + ofset
+1.5 get nuclius
+2 made unvisible groups for duplicate
+3 made duplicate
+4 made bland shape
+5 made animation
+6 delete duplicates
+7 turn off dynamics 
 
- 
- 
-
-
-
-
+"""
  
 
 
