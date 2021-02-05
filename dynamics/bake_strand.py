@@ -5,7 +5,6 @@ import maya.cmds as cmds
 import re
 import functools
 import logging
- 
 
 ABOUT_SCRIPT = "\n" \
                "Latest updates:                \n" \
@@ -19,11 +18,8 @@ HELP_LABEL = "Select the required character controller and click bake dynamics. 
 
 HELP_TEXT = "\n" \
             "1 Choose the character you want to work with by choosing one of his controllers.\n" \
-            "2 Adjust their orientation - the controllers will be oriented in a similar way\n" \
-            "3 Make sure the bones are out of the collision objects \n" \
-            "4 The root joint must have a parent, to which the system will be attached later\n" \
-            "5 Choose 'Create dynanmics sistem'\n" \
-
+            "2 If you need to cache one dynamic system, click 'Bake_selaction'\n" \
+            "3 To cache all dynamic systems, choose 'Bake_all'\n" \
 
 class BakeStrand_UI(QMainWindow):
     def __init__(self):
