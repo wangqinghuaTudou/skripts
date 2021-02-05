@@ -5,6 +5,7 @@ import maya.cmds as cmds
 import re
 import functools
 import logging
+ 
 
 ABOUT_SCRIPT = "\n" \
                "Latest updates:                \n" \
@@ -72,60 +73,78 @@ class BakeStrand_UI(QMainWindow):
         self.bake_selaction_button.clicked.connect(functools.partial(self.button_comand, True, True))
         self.unbake_selaction_button = QPushButton("Unbake_selaction")
         self.button_layout.addWidget(self.unbake_selaction_button, 1, 0, 1, 1)
-        self.unbake_selaction_button.clicked.connect(functools.partial(self.button_comand, False, True))
+        self.unbake_selaction_button.clicked.connect(functools.partial(self.unbake_comand, True))
         self.bake_all_button = QPushButton("Bake_all")
         self.button_layout.addWidget(self.bake_all_button, 0, 1, 1, 1)
         self.bake_all_button.clicked.connect(functools.partial(self.button_comand, True, False))
         self.unbake_all_button = QPushButton("Unbake_all")
         self.button_layout.addWidget(self.unbake_all_button, 1, 1, 1, 1)
-        self.unbake_all_button.clicked.connect(functools.partial(self.button_comand, False, False))
+        self.unbake_all_button.clicked.connect(functools.partial(self.unbake_comand, False))
         self.verticalLayout.addLayout(self.button_layout)
         
-    def button_comand(self, is_bake, is_to_selection):
-        ctrl = self.__get_selection()
-        if is_to_selection:
-            dynamics_curve = self.get_selaction_dynamics_controller(ctrl)
+    def button_comand(self, is_bake, to_selection):
+        ctrl = self.get_controller()
+        if to_selection:
+            dynamics_curve = self.get_curve_from_selected(ctrl)
             if not dynamics_curve:
                 cmds.error("Selected object is not part of the dynamic system !")
+                
             if is_bake:
                 print("bake_selaction")
                 self.bake_curves(dynamics_curve)
             else:
                 print("unbake_selaction")
         else:
-            dynamics_curve = self.get_dynamics_curves(ctrl)
+            dynamics_curves = self.get_dynamics_curves(ctrl)
             if is_bake:
                 print("bake_all")
-                self.bake_curves(dynamics_curve)
+                self.bake_curves(dynamics_curves)
             else:
                 print("unbake_all")
-        print ctrl
-        print dynamics_curve
-        
 
- 
-    def __get_selection (self):
+    def unbake_comand(self, to_selection):
+        ctrl = self.get_controller()      
+        if to_selection:
+            dynamics_curves = self.get_curve_from_selected(ctrl)
+            if not dynamics_curves:
+                cmds.error("Selected object is not part of the dynamic system !")
+        else:
+            dynamics_curves = self.get_dynamics_curves(ctrl)
+            
+        for each_curve in  dynamics_curves:
+            history = cmds.listHistory (each_curve, levels=1)
+            try:
+                blendNode = cmds.ls(history, type="blendShape")[0]
+                cmds.delete(blendNode)
+            except IndexError:
+                cmds.error("This object has no cache!")
+    
+    def get_controller (self):
         try:
             return cmds.ls(sl=True)[0]
         except IndexError:
             cmds.error("Necessary to select character`s controller!")
-   
-    def get_selaction_dynamics_controller(self, ctrl):
-        if cmds.objExists(ctrl+".prefix"):
-            pfx_attr = cmds.getAttr(ctrl+".prefix")
-            name_space = ctrl.split(pfx_attr)[0]
-            return [name_space+pfx_attr+"Dynamics_crv",]
-        else: []
-
+    
     def bake_curves(self, curve_list):
-        cmds.select(curve_list)
-        min_val, max_val = self.get_time_range()
-        self.set_time_range(min_val-20, max_val)
-        ctrl = self.__get_selection()
-        nuclius = self.get_nuclius(ctrl)
+        start_time, end_time = self.get_time_range()
+        self.set_time_range(start_time, end_time)
+        ctrl = self.get_controller()
+        curve_blends = [[] for x in range(len(curve_list))]
+        for frame in xrange( int(start_time), int(end_time+2)):
+            if frame>int(start_time+1):
+                for i, each_curve in enumerate(curve_list):
+                    duplicat_curve = cmds.duplicate(curve_list[i])[0]    #, name=curve_list[i]+"_"+str(frame-1)
+                    curve_blends[i].append(duplicat_curve)
+            cmds.currentTime( frame, edit=True )
         
-        
-
+        for i, each_curve in enumerate(curve_list):
+            vBsh = cmds.blendShape (curve_blends[i], each_curve,  inBetween=True, origin="world" )[0]
+            #cmds.delete(curve_blends[i])
+            weight_attr = cmds.listAttr (vBsh + ".w", m=True)[0]
+            cmds.setKeyframe(vBsh+"."+weight_attr, value=1, time=end_time, outTangentType="linear", inTangentType="linear")
+            cmds.setKeyframe(vBsh+"."+weight_attr, value=0, time=start_time, outTangentType="linear", inTangentType="linear")
+        self.set_time_range(start_time, end_time)
+    
     def get_dynamics_curves(self, ctrl):
         char_pfx = re.findall(r"(^[A-Za-z0-9_]*):", ctrl)[0] 
         all_follicle = [x for x in cmds.ls(type='follicle') if char_pfx+":" in x]
@@ -135,26 +154,35 @@ class BakeStrand_UI(QMainWindow):
             dyn_curve = cmds.listRelatives(dyn_curve_shape, parent=True)[0]
             dyn_curves.append(dyn_curve)
         return dyn_curves
-
+        
+    def get_curve_from_selected(self, ctrl):
+        if cmds.objExists(ctrl+".prefix"):
+            pfx_attr = cmds.getAttr(ctrl+".prefix")
+            name_space = ctrl.split(pfx_attr)[0]
+            return [name_space+pfx_attr+"Dynamics_crv",]
+        else: 
+            return []
+    
     def get_time_range(self):
-        max_val = cmds.playbackOptions(q=True,  max=True)
-        min_val = cmds.playbackOptions(q=True,  min=True)
-        return min_val, max_val
+        end_time = cmds.playbackOptions(q=True,  max=True)
+        start_time = cmds.playbackOptions(q=True,  min=True)
+        return start_time, end_time
 
-    def set_time_range(self, min_val, max_val):
-        cmds.playbackOptions(e=True,  min=min_val)
-        cmds.playbackOptions(e=True,  max=max_val)
-        cmds.currentTime( min_val, edit=True )
+    def set_time_range(self, start_time, end_time):
+        ctrl = self.get_controller()
+        nuclius = self.get_nuclius(ctrl)
+        cmds.setAttr(nuclius+".startFrame", start_time)
+        cmds.playbackOptions(e=True,  min=start_time)
+        cmds.playbackOptions(e=True,  max=end_time)
+        cmds.currentTime( start_time, edit=True )
     
     def get_nuclius(self, ctrl):
         char_pfx = re.findall(r"(^[A-Za-z0-9_]*):", ctrl)[0] 
         nuclius = [x for x in cmds.ls(type='nucleus') if char_pfx+":" in x][0]
         return nuclius
 
-#cmds.currentTime(q=1)
-#cmds.playbackOptions( e=True, max = 340)
-#cmds.currentTime( 350, edit=True )
-
+ 
+ 
 def bake_strand():
     global bake_win
     try:
@@ -171,55 +199,6 @@ bake_strand()
 
 
  
-
-#obj = cmds.ls(sl=True)[0]
-#cmds.select(get_dynamics_curves(obj))
-
-
-#___________________________________________________________________________
-
- 
-def anim_to_bsh(geo, start, end, del_blds=True, bake_duplicate = False):
-
-    mm.eval("currentTime {} ; ".format(start))
-
-    geoDbl = cmds.duplicate(geo)[0] if bake_duplicate else geo
-    targs=[]
-    for _ in xrange( start, end+1):
-        targs.append(cmds.duplicate(geo)[0])
-        mm.eval("playButtonStepForward; ")
-    targs.append(geoDbl)
-
-    vBsh = cmds.blendShape (targs[1:],  inBetween=True, origin="world" )[0]
-    if del_blds:
-        cmds.delete(targs[:-1])
-
-    cmds.setKeyframe(vBsh+".l_dCurv127", value=1, time=end, outTangentType="linear", inTangentType="linear")
-    cmds.setKeyframe(vBsh+".l_dCurv127", value=0, time=start, outTangentType="linear", inTangentType="linear")
-    mm.eval("currentTime {} ; ".format(start))
-    #cmds.setAttr ("liza_ogurcy:hairSystemShape1.simulationMethod", 1)
-    #cmds.setAttr ("liza_ogurcy:nucleus1.enable", 0)
-
-    return vBsh
-
-
-def del_bsp(bsp):
-    cmds.delete(bsp)
-    #cmds.setAttr ("liza_ogurcy:hairSystemShape1.simulationMethod", 3)
-    cmds.setAttr ("liza_ogurcy:nucleus1.enable", 1)
- 
-"""
-0 dil old bland shape
-1 get time and set time + ofset
-1.5 get nuclius
-2 made unvisible groups for duplicate
-3 made duplicate
-4 made bland shape
-5 made animation
-6 delete duplicates
-7 turn off dynamics 
-
-"""
  
 
 
