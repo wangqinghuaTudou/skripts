@@ -1,3 +1,8 @@
+
+
+
+
+
 global proc an_ctrlColor ()
 {
 string $win = "an_ctColor";
@@ -102,6 +107,8 @@ global proc an_colorOverride (string $list[], int $color)
         if (size($layer) != 0)
                 disconnectAttr  ($layer[0] + ".drawInfo") ($colorNode + ".drawOverride");
 
+   
+        setAttr ($colorNode + ".overrideRGBColors") 0;
         setAttr ($colorNode + ".overrideEnabled") 1;
         setAttr ($colorNode + ".overrideColor") $color;
         }
