@@ -58,7 +58,7 @@ def an_save_load_data(data = ""):
         with open(file_path, 'w' ) as f: return cPickle.dump(data, f)
 
 def an_get_pfx(obj):
-    pfx = re.findall('^[0-9A-Za-z_]+:', obj)
+    pfx = re.findall('^[:0-9A-Za-z_]+:', obj)
     pfx =  pfx[0] if pfx else ''
     return pfx
 
