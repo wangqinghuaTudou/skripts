@@ -17,14 +17,17 @@ ABOUT_SCRIPT = "\n" \
                "andreikin@mail.ru"
 
 HELP_LABEL = "Select a chain of bones (more than two joints) on the basis of which will be\n" \
-             "created FK controllers  and a dynamic curve"
-
+             "created FK controllers  and a dynamic curve\n" \
+  
 HELP_TEXT = "\n" \
             "1 Build the bone chain by placing the joints where the controllers should be.\n" \
             "2 Adjust their orientation - the controllers will be oriented in a similar way\n" \
             "3 Make sure the bones are out of the collision objects \n" \
             "4 The root joint must have a parent, to which the system will be attached later\n" \
             "5 Choose 'Create dynanmics sistem'\n" \
+            "\n" \
+            "To create controllers on a switch - select the core, then the switch and\n" \
+            "press the button 'Connect nucleus'"\
 
 DEFAULT_PREFIX = "haersStrand"
 MAX_VERTEX_NUM = 40
@@ -37,7 +40,7 @@ class HairStrand_UI(QMainWindow):
     def __init__(self):
         super(HairStrand_UI, self).__init__()
         # Window
-        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setWindowTitle("Hair strand rigging system")
         self.centralwidget = QWidget(self)
         self.setCentralWidget(self.centralwidget)
@@ -63,6 +66,7 @@ class HairStrand_UI(QMainWindow):
 
     def text_dialog(self, text_type):
         help_dialog = QMessageBox()
+        help_dialog.setWindowFlags(Qt.WindowStaysOnTopHint)
         if text_type == "Help":
             help_dialog.setWindowTitle("Help window")
             help_dialog.setText(HELP_TEXT)
@@ -93,7 +97,6 @@ class HairStrand_UI(QMainWindow):
         self.curve_horizontal_slider = QSlider()
         self.curve_horizontal_slider.setMinimum(1)
         self.curve_horizontal_slider.setMaximum(MAX_VERTEX_NUM)
-        # self.curve_horizontal_slider.setValue(DEFAULT_VERTEX_NUM)
         self.curve_horizontal_slider.setSliderPosition(DEFAULT_VERTEX_NUM)
         self.curve_horizontal_slider.setOrientation(Qt.Horizontal)
         self.curve_hLayout.addWidget(self.curve_horizontal_slider)
@@ -124,17 +127,18 @@ class HairStrand_UI(QMainWindow):
         self.joints_horizontal_slider.valueChanged.connect(self.joints_spin_box.setValue)
         self.joints_spin_box.valueChanged.connect(self.joints_horizontal_slider.setValue)
         self.option_box_layout.addLayout(self.horizontalLayout_2)
-
         self.verticalLayout.addWidget(self.option_box)
 
     def __buttons(self):
         self.buttons_layout = QHBoxLayout()  
+        self.connect_nucleus_button = QPushButton("Connect nucleus")
+        self.buttons_layout.addWidget(self.connect_nucleus_button)
+        self.connect_nucleus_button.clicked.connect(self.connect_nucleus)
         self.create_button = QPushButton("Create dynanmics sistem")
-        self.buttons_layout.addWidget(self.create_button, 0, Qt.AlignRight)
-        self.create_button.setMaximumSize(QSize(200, 30))
+        self.buttons_layout.addWidget(self.create_button)
         self.verticalLayout.addLayout(self.buttons_layout)
         self.create_button.clicked.connect(self.create_rig)
-
+        
 
 class HairStrandRig(HairStrand_UI):
     def create_rig(self):
@@ -147,6 +151,7 @@ class HairStrandRig(HairStrand_UI):
             self.fk_dynamics_mix_system()
             self.add_skin_joints()
             an_connectRigVis (self.rig_grp, [self.input_curve, self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.loc,])
+            
     def get_data_from_ui(self):
         self.prefx = self.pfx_lineEdit.text()
         if not self.prefx:
@@ -242,7 +247,15 @@ class HairStrandRig(HairStrand_UI):
         cmds.parent(skin_jnt_grp, self.rig_grp)
         cmds.parent(self.loc, self.controls[0].name)
         an_connectRigVis (self.rig_grp, self.jointsNames)
-        
+       
+    def connect_nucleus (self):
+        try:
+            nucleus, switch = cmds.ls(sl=True)
+        except ValueError:
+            logging.getLogger().error("Select nucleus, then switch  and click the 'connect' button ")
+        cmds.addAttr (switch, ln="haer_dynamics", at="enum", en="off:on", keyable=True)
+        cmds.connectAttr(switch+".haer_dynamics", nucleus+".enable")
+  
 
 def hair_strand_rig():
     global dyn_win
