@@ -8,6 +8,7 @@ import logging
 from an_classControllers import AnControllers
 from an_Procedures.joints import jntOnCurvNonSpline
 from an_Procedures.connect import an_connectRigVis
+from maya.app.general.mayaMixin import MayaQWidgetBaseMixin # for parent ui to maya
 
 ABOUT_SCRIPT = "\n" \
                "Latest updates:                               \n" \
@@ -38,11 +39,9 @@ DEFAULT_JOINT_NUM = 12
 POINT_NUM_IN_DYN_CONSTRAINT = 2
 
 
-class HairStrand_UI(QMainWindow):
+class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
     def __init__(self):
         super(HairStrand_UI, self).__init__()
-        # Window
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setWindowTitle("Hair strand rigging system")
         self.centralwidget = QWidget(self)
         self.setCentralWidget(self.centralwidget)
