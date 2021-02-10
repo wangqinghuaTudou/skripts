@@ -30,7 +30,7 @@ HELP_TEXT = "\n" \
             "To create controllers on a switch - select the nucleus, then the switch and\n" \
             "press the button 'Connect nucleus'"
 
-DEFAULT_PREFIX = "haersStrand"
+DEFAULT_PREFIX = "hairsStrand"
 MAX_VERTEX_NUM = 40
 DEFAULT_VERTEX_NUM = 4
 MAX_JOINT_NUM = 40
@@ -88,7 +88,7 @@ class HairStrand_UI(QMainWindow):
         self.pfx_label = QLabel("Prefix:")
         self.pfx_layout.addWidget(self.pfx_label)
         self.pfx_lineEdit = QLineEdit(DEFAULT_PREFIX)
-        regexp = QRegExp('^([A-Za-z]+[0-9]+)$')
+        regexp = QRegExp('^([A-Za-z_]+[0-9]+)$')
         validator = QRegExpValidator(regexp)
         self.pfx_lineEdit.setValidator(validator)
         self.pfx_layout.addWidget(self.pfx_lineEdit)
