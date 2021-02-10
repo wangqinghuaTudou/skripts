@@ -3,6 +3,7 @@ from PySide2.QtGui import *
 from PySide2.QtWidgets import *
 import functools
 import maya.cmds as cmds
+import maya.mel as mm
 import logging
 from an_classControllers import AnControllers
 from an_Procedures.joints import jntOnCurvNonSpline
@@ -17,8 +18,8 @@ ABOUT_SCRIPT = "\n" \
                "andreikin@mail.ru"
 
 HELP_LABEL = "Select a chain of bones (more than two joints) on the basis of which will be\n" \
-             "created FK controllers  and a dynamic curve\n" \
-  
+             "created FK controllers  and a dynamic curve\n"
+
 HELP_TEXT = "\n" \
             "1 Build the bone chain by placing the joints where the controllers should be.\n" \
             "2 Adjust their orientation - the controllers will be oriented in a similar way\n" \
@@ -26,8 +27,8 @@ HELP_TEXT = "\n" \
             "4 The root joint must have a parent, to which the system will be attached later\n" \
             "5 Choose 'Create dynanmics sistem'\n" \
             "\n" \
-            "To create controllers on a switch - select the core, then the switch and\n" \
-            "press the button 'Connect nucleus'"\
+            "To create controllers on a switch - select the nucleus, then the switch and\n" \
+            "press the button 'Connect nucleus'"
 
 DEFAULT_PREFIX = "haersStrand"
 MAX_VERTEX_NUM = 40
@@ -35,6 +36,7 @@ DEFAULT_VERTEX_NUM = 4
 MAX_JOINT_NUM = 40
 DEFAULT_JOINT_NUM = 12
 POINT_NUM_IN_DYN_CONSTRAINT = 2
+
 
 class HairStrand_UI(QMainWindow):
     def __init__(self):
@@ -51,10 +53,10 @@ class HairStrand_UI(QMainWindow):
         self.__buttons()
 
     def __menu_bar(self):
-        menuBar = QMenuBar()
-        self.setMenuBar(menuBar)
+        menu_bar = QMenuBar()
+        self.setMenuBar(menu_bar)
         menu = QMenu("Help")
-        menuBar.addMenu(menu)
+        menu_bar.addMenu(menu)
 
         help_action = QAction("Help", self)
         menu.addAction(help_action)
@@ -130,15 +132,15 @@ class HairStrand_UI(QMainWindow):
         self.verticalLayout.addWidget(self.option_box)
 
     def __buttons(self):
-        self.buttons_layout = QHBoxLayout()  
+        self.buttons_layout = QHBoxLayout()
         self.connect_nucleus_button = QPushButton("Connect nucleus")
         self.buttons_layout.addWidget(self.connect_nucleus_button)
         self.connect_nucleus_button.clicked.connect(self.connect_nucleus)
-        self.create_button = QPushButton("Create dynanmics sistem")
+        self.create_button = QPushButton("Create dynanmics system")
         self.buttons_layout.addWidget(self.create_button)
         self.verticalLayout.addLayout(self.buttons_layout)
         self.create_button.clicked.connect(self.create_rig)
-        
+
 
 class HairStrandRig(HairStrand_UI):
     def create_rig(self):
@@ -150,24 +152,33 @@ class HairStrandRig(HairStrand_UI):
             self.building_dynamic_curve()
             self.fk_dynamics_mix_system()
             self.add_skin_joints()
-            an_connectRigVis (self.rig_grp, [self.input_curve, self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.loc,])
-            
+            an_connectRigVis(self.rig_grp,
+                             [self.input_curve, self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.loc, ])
+
     def get_data_from_ui(self):
         self.prefx = self.pfx_lineEdit.text()
         if not self.prefx:
             logging.getLogger().warning("You did not enter a prefix, the default value will be used!")
-            self.prefx = DEFAULT_PREFIX
+            self.prefx = DEFAULT_PREFIX   
         self.point_number = self.curve_horizontal_slider.value()
         self.joint_number = self.joints_horizontal_slider.value()
 
     def get_objects_and_chek_it(self):
-        self.ctrl_joints = cmds.ls(sl=True)
-        if len(self.ctrl_joints) < 3:
+        self.joints = cmds.ls(sl=True)
+        
+        if cmds.objExists(self.prefx+'Rig_grp'):
+            cmds.error("Scene already contains objects with this prefix, choose another ")
+            
+        if len(self.joints) < 3 :
             logging.getLogger().error("Necessary to select at least three joints!")
             return False
+        for jnt in self.joints: 
+            if not cmds.nodeType(jnt)=="joint": 
+                cmds.error("Necessary to select at least three joints!")
+                return False
         # get an object to which the entire system will be bound by the constraint
         try:
-            self.parent_object = cmds.listRelatives(self.ctrl_joints[0], parent=True)[0]
+            self.parent_object = cmds.listRelatives(self.joints[0], parent=True)[0]
         except TypeError:
             self.parent_object = None
             logging.getLogger().warning("No parent, so the system will not be attached!")
@@ -179,7 +190,7 @@ class HairStrandRig(HairStrand_UI):
         cmds.parent(self.fk_grp, self.rig_grp)
         if self.parent_object:
             cmds.parentConstraint(self.parent_object, self.fk_grp)
-        for i, jnt in enumerate(self.ctrl_joints[:-1]):
+        for i, jnt in enumerate(self.joints[:-1]):
             ctrl = AnControllers(self.prefx + str(i) + "_CT")
             ctrl.makeController(shapeType="fk", orient="X", pos=jnt)
             ctrl.hideAttr(['sx', 'sy', 'sz', 'v'])
@@ -189,17 +200,17 @@ class HairStrandRig(HairStrand_UI):
             else:
                 cmds.parent(ctrl.oriGrp, self.controls[i - 1].name)
             cmds.parentConstraint(ctrl.name, jnt)
-            # add attribute to determine whether the controller belongs to dynamic system 
-            cmds.addAttr( ctrl.name,  longName='prefix', dt='string', keyable = False )
-            cmds.setAttr (ctrl.name+".prefix", self.prefx , type="string" ) 
+            # add attribute to determine whether the controller belongs to dynamic system
+            cmds.addAttr(ctrl.name, longName='prefix', dt='string', keyable=False)
+            cmds.setAttr(ctrl.name + ".prefix", self.prefx, type="string")
 
     def building_base_curve(self):
         point_position = []
-        for jnt in self.ctrl_joints:
+        for jnt in self.joints:
             jnt_coordinates = cmds.xform(jnt, query=True, translation=True, worldSpace=True)
             point_position.append(jnt_coordinates)
         self.base_curve = cmds.curve(p=point_position, degree=2, name=self.prefx + 'FK_crv')
-        cmds.skinCluster(self.ctrl_joints, self.base_curve, toSelectedBones=True, normalizeWeights=True)
+        cmds.skinCluster(self.joints, self.base_curve, toSelectedBones=True, normalizeWeights=True)
         cmds.rebuildCurve(self.base_curve,
                           rebuildType=0,
                           spans=self.point_number,
@@ -214,11 +225,12 @@ class HairStrandRig(HairStrand_UI):
         follicle = cmds.listConnections(crv_shape + ".local")[0]
         follicle = cmds.rename(follicle, self.prefx + '_follicle')
         cmds.setAttr(follicle + ".pointLock", 0)
-        folShape = cmds.listRelatives(follicle, shapes=True)[0]
-        dyn_curve_shape = cmds.connectionInfo(folShape + ".outCurve", destinationFromSource=True)[0].split('.')[0]
+        fol_shape = cmds.listRelatives(follicle, shapes=True)[0]
+        dyn_curve_shape = cmds.connectionInfo(fol_shape + ".outCurve", destinationFromSource=True)[0].split('.')[0]
         self.dyn_curve = cmds.listRelatives(dyn_curve_shape, parent=True)[0]
-        self.hair_sys_shape = cmds.connectionInfo(folShape + ".outHair", destinationFromSource=True)[0].split('.')[0]
+        self.hair_sys_shape = cmds.connectionInfo(fol_shape + ".outHair", destinationFromSource=True)[0].split('.')[0]
         self.hair_sys = cmds.listRelatives(self.hair_sys_shape, parent=True)[0]
+        self.setup_mix_attribut()
         self.hair_sys = cmds.rename(self.hair_sys, self.prefx + '_hairSystem')
         self.dyn_curve_grp = cmds.listRelatives(self.dyn_curve, parent=True)[0]
         self.dyn_curve = cmds.rename(self.dyn_curve, self.prefx + 'Dynamics_crv')
@@ -228,34 +240,63 @@ class HairStrandRig(HairStrand_UI):
         cmds.parentConstraint(self.controls[0].name, self.dyn_constraint)
         cmds.parent(self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.rig_grp)
 
-    def fk_dynamics_mix_system(self):
+    def setup_mix_attribut(self):
+        soft_suffix = "_soft"
+        hard_suffix = "_hard"
+        atributes = {"stretchResistance": (0, 200),
+                     "compressionResistance": (0, 200),
+                     "bendResistance": (0, 200),
+                     "mass": (0, 10),
+                     "drag": (0, 1),
+                     "damp": (0, 10)}
         self.controls[0].addDevideAttr()
+        driver_attr = self.controls[0].name
+        cmds.addAttr(driver_attr, longName="stiffness", keyable=True, minValue=0, maxValue=1)
+        for atrribut in atributes:
+            default_val = cmds.getAttr(self.hair_sys_shape + "." + atrribut)
+            cmds.addAttr(self.hair_sys,
+                         longName=atrribut + soft_suffix,
+                         keyable=True,
+                         minValue=atributes[atrribut][0],
+                         maxValue=atributes[atrribut][1],
+                         defaultValue=default_val)
+            cmds.addAttr(self.hair_sys,
+                         longName=atrribut + hard_suffix,
+                         keyable=True,
+                         minValue=atributes[atrribut][0],
+                         maxValue=atributes[atrribut][1],
+                         defaultValue=default_val * 4)
+            blend_node = cmds.createNode('blendTwoAttr', n=atrribut + 'Blend_nod')
+            cmds.connectAttr(self.hair_sys + "." + atrribut + soft_suffix, blend_node + ".input[0]")
+            cmds.connectAttr(self.hair_sys + "." + atrribut + hard_suffix, blend_node + ".input[1]")
+            cmds.connectAttr(blend_node + ".output", self.hair_sys_shape + "." + atrribut)
+            cmds.connectAttr(driver_attr + ".stiffness", blend_node + ".attributesBlender")
+
+    def fk_dynamics_mix_system(self):
         cmds.addAttr(self.controls[0].name,
-                                    longName="fk_dynamics_mixer",
-                                    shortName="fk_dyn_mix",
-                                    keyable=True,
-                                    minValue=0,
-                                    maxValue=1)
+                     longName="fk_dyn_mix",
+                     keyable=True,
+                     minValue=0,
+                     maxValue=1)
         bldShape = cmds.blendShape(self.dyn_curve, self.base_curve,
-                                    origin="world",
-                                    name=self.prefx + 'blendShape')[0]
+                                   origin="world",
+                                   name=self.prefx + 'blendShape')[0]
         cmds.connectAttr(self.controls[0].name + ".fk_dyn_mix", bldShape + "." + self.dyn_curve)
-        
-        
+
     def add_skin_joints(self):
         self.loc, self.jointsNames, skin_jnt_grp = jntOnCurvNonSpline(self.base_curve, self.joint_number, self.prefx)
         cmds.parent(skin_jnt_grp, self.rig_grp)
         cmds.parent(self.loc, self.controls[0].name)
-        an_connectRigVis (self.rig_grp, self.jointsNames)
-       
-    def connect_nucleus (self):
+        an_connectRigVis(self.rig_grp, self.jointsNames)
+
+    def connect_nucleus(self):
         try:
             nucleus, switch = cmds.ls(sl=True)
         except ValueError:
             logging.getLogger().error("Select nucleus, then switch  and click the 'connect' button ")
-        cmds.addAttr (switch, ln="haer_dynamics", at="enum", en="off:on", keyable=True)
-        cmds.connectAttr(switch+".haer_dynamics", nucleus+".enable")
-  
+        cmds.addAttr(switch, ln="haer_dynamics", at="enum", en="off:on", keyable=True)
+        cmds.connectAttr(switch + ".haer_dynamics", nucleus + ".enable")
+
 
 def hair_strand_rig():
     global dyn_win
@@ -266,21 +307,8 @@ def hair_strand_rig():
     dyn_win = HairStrandRig()
     dyn_win.show()
 
-
-hair_strand_rig()
-
-
-
-
-
-
-
-
-
-
-
-
-
+if __name__ == '__main__':
+    hair_strand_rig()
 
 
 
