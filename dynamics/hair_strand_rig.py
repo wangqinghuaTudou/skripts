@@ -57,11 +57,9 @@ class HairStrand_UI(QMainWindow):
         self.setMenuBar(menu_bar)
         menu = QMenu("Help")
         menu_bar.addMenu(menu)
-
         help_action = QAction("Help", self)
         menu.addAction(help_action)
         help_action.triggered.connect(functools.partial(self.text_dialog, "Help"))
-
         about_script_action = QAction("About script", self)
         menu.addAction(about_script_action)
         about_script_action.triggered.connect(functools.partial(self.text_dialog, "ABOUT_PROGRAM"))
@@ -90,8 +88,12 @@ class HairStrand_UI(QMainWindow):
         self.pfx_label = QLabel("Prefix:")
         self.pfx_layout.addWidget(self.pfx_label)
         self.pfx_lineEdit = QLineEdit(DEFAULT_PREFIX)
+        regexp = QRegExp('^([A-Za-z]+[0-9]+)$')
+        validator = QRegExpValidator(regexp)
+        self.pfx_lineEdit.setValidator(validator)
         self.pfx_layout.addWidget(self.pfx_lineEdit)
-        self.option_box_layout.addLayout(self.pfx_layout)
+        self.option_box_layout.addLayout(self.pfx_layout)       
+
         # slider Points number
         self.curve_hLayout = QHBoxLayout()
         self.curve_label = QLabel("Points number :")
