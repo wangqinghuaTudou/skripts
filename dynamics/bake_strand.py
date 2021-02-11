@@ -5,6 +5,7 @@ import maya.cmds as cmds
 import re
 import functools
 import logging
+from maya.app.general.mayaMixin import MayaQWidgetBaseMixin # for parent ui to maya
 
 ABOUT_SCRIPT = "\n" \
                "Latest updates:                \n" \
@@ -21,8 +22,15 @@ HELP_TEXT = "\n" \
             "2 If you need to cache one dynamic system, click 'Bake_selaction'\n" \
             "3 To cache all dynamic systems, choose 'Bake_all'\n" 
 
+import logging
+#logger.manager.loggerDict = {}
+logger.handlers = []
+logging.basicConfig( format="%(asctime)s  line: %(lineno)s   - function  %(funcName)s() %(message)s")
+logger = logging.getLogger()
+logger.setLevel(logging.WARNING)# WARNING  DEBUG
 
-class BakeStrand(QMainWindow):
+
+class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
     def __init__(self):
         super(BakeStrand, self).__init__()
         # Window
@@ -46,10 +54,12 @@ class BakeStrand(QMainWindow):
         about_script_action = QAction("About script", self)
         menu.addAction(about_script_action)
         about_script_action.triggered.connect(functools.partial(self.text_dialog, "About program"))
+        logger.debug(" executed  ")
 
     def __label(self):
         self.help_label = QLabel(HELP_LABEL)
         self.verticalLayout.addWidget(self.help_label)
+        logger.debug(" executed  ")
 
     def __buttons(self):
         self.button_layout = QGridLayout()
@@ -67,23 +77,31 @@ class BakeStrand(QMainWindow):
         self.button_layout.addWidget(self.unbake_all_button, 1, 1, 1, 1)
         self.unbake_all_button.clicked.connect(functools.partial(self.button_command, False, False))
         self.verticalLayout.addLayout(self.button_layout)
+        logger.debug(" executed  ")
 
     def button_command(self, to_selection, bake):
+        print("\n")
         ctrl = self.get_controller()
         if to_selection:
+            logger.debug("entered  get selection condition")
             dynamics_curves = self.get_curve_from_control(ctrl)
         else:
+            logger.debug("entered  get all condition")
             dynamics_curves = self.get_all_dynamics_curves(ctrl)
         if bake:
+            logger.debug("entered  bake condition")
             self.bake_curves(dynamics_curves)
         else:
+            logger.debug("entered  unbake condition")
             self.unbake_curves(dynamics_curves)
+        
 
     def get_controller(self):
         try:
             return cmds.ls(sl=True)[0]
         except IndexError:
             cmds.error("Necessary to select character`s controller!")
+        
 
     def bake_curves(self, curve_list):
         start_time, end_time = self.get_time_range()
@@ -103,6 +121,7 @@ class BakeStrand(QMainWindow):
             cmds.setKeyframe(blend_shape + "." + weight_attr, value=0, time=start_time, outTangentType="linear",
                              inTangentType="linear")
         self.set_time_range(start_time, end_time)
+        logger.debug(" executed  ")
 
     def unbake_curves(self, dynamics_curves):
         for each_curve in dynamics_curves:
@@ -115,6 +134,7 @@ class BakeStrand(QMainWindow):
                     if cmds.nodeType(each) == "transform" and each != each_curve:
                         cmds.delete(each)
                 cmds.delete(blend_node)
+                logger.debug(" executed  ")
             except IndexError:
                 cmds.error("This object has no cache!")
 
@@ -127,12 +147,14 @@ class BakeStrand(QMainWindow):
                 0]
             dyn_curve = cmds.listRelatives(dyn_curve_shape, parent=True)[0]
             dyn_curves.append(dyn_curve)
+        logger.debug(" executed  ")
         return dyn_curves
 
     def get_curve_from_control(self, ctrl):
         if cmds.objExists(ctrl + ".prefix"):
             pfx_attr = cmds.getAttr(ctrl + ".prefix")
             name_space = ctrl.split(pfx_attr)[0]
+            logger.debug(" executed  ")
             return [name_space + pfx_attr + "Dynamics_crv", ]
         else:
             cmds.error("Selected object is not part of the dynamic system !")
@@ -140,6 +162,7 @@ class BakeStrand(QMainWindow):
     def get_time_range(self):
         end_time = cmds.playbackOptions(q=True, max=True)
         start_time = cmds.playbackOptions(q=True, min=True)
+        logger.debug(" executed  ")
         return start_time, end_time
 
     def set_time_range(self, start_time, end_time):
@@ -149,10 +172,12 @@ class BakeStrand(QMainWindow):
         cmds.playbackOptions(e=True, min=start_time)
         cmds.playbackOptions(e=True, max=end_time)
         cmds.currentTime(start_time, edit=True)
+        logger.debug(" executed  ")
 
     def get_nuclius(self, ctrl):
         char_pfx = re.findall(r"(^[A-Za-z0-9_]*):", ctrl)[0]
         nucleus = [x for x in cmds.ls(type='nucleus') if char_pfx + ":" in x][0]
+        logger.debug(" executed  ")
         return nucleus
 
     def text_dialog(self, text_type):
@@ -166,6 +191,7 @@ class BakeStrand(QMainWindow):
             help_dialog.setText(ABOUT_SCRIPT)
         help_dialog.setStandardButtons(QMessageBox.Cancel)
         help_dialog.exec_()
+        logger.debug(" executed  ")
 
 def bake_strand():
     global bake_win
@@ -177,6 +203,7 @@ def bake_strand():
     # app = QApplication([])
     bake_win = BakeStrand()
     bake_win.show()
+    logger.debug(" window is opened")
     # app.exec_()
 
 
