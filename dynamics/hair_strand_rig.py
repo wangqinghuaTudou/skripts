@@ -91,7 +91,7 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         validator = QRegExpValidator(regexp)
         self.pfx_lineEdit.setValidator(validator)
         self.pfx_layout.addWidget(self.pfx_lineEdit)
-        self.option_box_layout.addLayout(self.pfx_layout)       
+        self.option_box_layout.addLayout(self.pfx_layout)
 
         # slider Points number
         self.curve_hLayout = QHBoxLayout()
@@ -137,7 +137,7 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         self.connect_nucleus_button = QPushButton("Connect nucleus")
         self.buttons_layout.addWidget(self.connect_nucleus_button)
         self.connect_nucleus_button.clicked.connect(self.connect_nucleus)
-        self.create_button = QPushButton("Create dynanmics system")
+        self.create_button = QPushButton("Create dynamics system")
         self.buttons_layout.addWidget(self.create_button)
         self.verticalLayout.addLayout(self.buttons_layout)
         self.create_button.clicked.connect(self.create_rig)
@@ -160,21 +160,21 @@ class HairStrandRig(HairStrand_UI):
         self.prefx = self.pfx_lineEdit.text()
         if not self.prefx:
             logging.getLogger().warning("You did not enter a prefix, the default value will be used!")
-            self.prefx = DEFAULT_PREFIX   
+            self.prefx = DEFAULT_PREFIX
         self.point_number = self.curve_horizontal_slider.value()
         self.joint_number = self.joints_horizontal_slider.value()
 
     def get_objects_and_chek_it(self):
         self.joints = cmds.ls(sl=True)
-        
+
         if cmds.objExists(self.prefx+'Rig_grp'):
             cmds.error("Scene already contains objects with this prefix, choose another ")
-            
+
         if len(self.joints) < 3 :
             logging.getLogger().error("Necessary to select at least three joints!")
             return False
-        for jnt in self.joints: 
-            if not cmds.nodeType(jnt)=="joint": 
+        for jnt in self.joints:
+            if not cmds.nodeType(jnt)=="joint":
                 cmds.error("Necessary to select at least three joints!")
                 return False
         # get an object to which the entire system will be bound by the constraint
@@ -310,15 +310,3 @@ def hair_strand_rig():
 
 if __name__ == '__main__':
     hair_strand_rig()
-
-
-
-
-
-
-
-
-
-
-
-
