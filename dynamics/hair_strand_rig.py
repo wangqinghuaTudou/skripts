@@ -31,6 +31,12 @@ HELP_TEXT = "\n" \
             "To create controllers on a switch - select the nucleus, then the switch and\n" \
             "press the button 'Connect nucleus'"
 
+
+logging.basicConfig( format="%(asctime)s  line: %(lineno)s   - function  %(funcName)s() %(message)s")
+logger = logging.getLogger()
+logger.handlers = []
+logger.setLevel(logging.WARNING)
+
 DEFAULT_PREFIX = "hairsStrand"
 MAX_VERTEX_NUM = 40
 DEFAULT_VERTEX_NUM = 4
@@ -74,6 +80,7 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
             help_dialog.setText(ABOUT_SCRIPT)
         help_dialog.setStandardButtons(QMessageBox.Cancel)
         help_dialog.exec_()
+        logger.debug(" executed")
 
     def __libel(self):
         self.help_label = QLabel(HELP_LABEL)
@@ -92,7 +99,6 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         self.pfx_lineEdit.setValidator(validator)
         self.pfx_layout.addWidget(self.pfx_lineEdit)
         self.option_box_layout.addLayout(self.pfx_layout)
-
         # slider Points number
         self.curve_hLayout = QHBoxLayout()
         self.curve_label = QLabel("Points number :")
@@ -155,6 +161,7 @@ class HairStrandRig(HairStrand_UI):
             self.add_skin_joints()
             an_connectRigVis(self.rig_grp,
                              [self.input_curve, self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.loc, ])
+            print("Strand rigging successfully complete.")
 
     def get_data_from_ui(self):
         self.prefx = self.pfx_lineEdit.text()
@@ -166,10 +173,8 @@ class HairStrandRig(HairStrand_UI):
 
     def get_objects_and_chek_it(self):
         self.joints = cmds.ls(sl=True)
-
         if cmds.objExists(self.prefx+'Rig_grp'):
             cmds.error("Scene already contains objects with this prefix, choose another ")
-
         if len(self.joints) < 3 :
             logging.getLogger().error("Necessary to select at least three joints!")
             return False
@@ -204,6 +209,7 @@ class HairStrandRig(HairStrand_UI):
             # add attribute to determine whether the controller belongs to dynamic system
             cmds.addAttr(ctrl.name, longName='prefix', dt='string', keyable=False)
             cmds.setAttr(ctrl.name + ".prefix", self.prefx, type="string")
+        logger.debug(" executed")
 
     def building_base_curve(self):
         point_position = []
@@ -217,6 +223,7 @@ class HairStrandRig(HairStrand_UI):
                           spans=self.point_number,
                           constructionHistory=True)
         cmds.parent(self.base_curve, self.rig_grp)
+        logger.debug(" executed")
 
     def building_dynamic_curve(self):
         self.input_curve = cmds.duplicate(name=self.prefx + 'Input_crv', inputConnections=True)[0]
@@ -240,6 +247,7 @@ class HairStrandRig(HairStrand_UI):
         self.dyn_constraint = cmds.listRelatives(dynamicConstraintShape, parent=True)[0]
         cmds.parentConstraint(self.controls[0].name, self.dyn_constraint)
         cmds.parent(self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.rig_grp)
+        logger.debug(" executed")
 
     def setup_mix_attribut(self):
         soft_suffix = "_soft"
@@ -272,6 +280,7 @@ class HairStrandRig(HairStrand_UI):
             cmds.connectAttr(self.hair_sys + "." + atrribut + hard_suffix, blend_node + ".input[1]")
             cmds.connectAttr(blend_node + ".output", self.hair_sys_shape + "." + atrribut)
             cmds.connectAttr(driver_attr + ".stiffness", blend_node + ".attributesBlender")
+        logger.debug(" executed")
 
     def fk_dynamics_mix_system(self):
         cmds.addAttr(self.controls[0].name,
@@ -283,20 +292,23 @@ class HairStrandRig(HairStrand_UI):
                                    origin="world",
                                    name=self.prefx + 'blendShape')[0]
         cmds.connectAttr(self.controls[0].name + ".fk_dyn_mix", bldShape + "." + self.dyn_curve)
+        logger.debug(" executed")
 
     def add_skin_joints(self):
         self.loc, self.jointsNames, skin_jnt_grp = jntOnCurvNonSpline(self.base_curve, self.joint_number, self.prefx)
         cmds.parent(skin_jnt_grp, self.rig_grp)
         cmds.parent(self.loc, self.controls[0].name)
         an_connectRigVis(self.rig_grp, self.jointsNames)
+        logger.debug(" executed")
 
     def connect_nucleus(self):
         try:
             nucleus, switch = cmds.ls(sl=True)
         except ValueError:
-            logging.getLogger().error("Select nucleus, then switch  and click the 'connect' button ")
+            cmds.error("Select nucleus, then switch  and click the 'connect' button ")
         cmds.addAttr(switch, ln="haer_dynamics", at="enum", en="off:on", keyable=True)
         cmds.connectAttr(switch + ".haer_dynamics", nucleus + ".enable")
+        logger.debug(" executed")
 
 
 def hair_strand_rig():
@@ -307,6 +319,7 @@ def hair_strand_rig():
         pass
     dyn_win = HairStrandRig()
     dyn_win.show()
+    logger.debug(" window is opened")
 
 if __name__ == '__main__':
     hair_strand_rig()
