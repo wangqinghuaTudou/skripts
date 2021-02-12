@@ -5,27 +5,30 @@ import maya.cmds as cmds
 import re
 import functools
 import logging
-from maya.app.general.mayaMixin import MayaQWidgetBaseMixin # for parent ui to maya
+from maya.app.general.mayaMixin import MayaQWidgetBaseMixin  # for parent ui to maya
 
 ABOUT_SCRIPT = "\n" \
                "Latest updates:                \n" \
+               "12.02.2021   -refactoring      \n" \
                "3.02.2021    -start writing    \n" \
                "                               \n" \
                "Created by Andrey Belyaev      \n" \
                "andreikin@mail.ru"
 
-HELP_LABEL = "Select the required character controller and click bake dynamics. \n" \
+HELP_LABEL = "Select the required character dynamics controller and click bake dynamics. \n" \
              "After baking, you can fix problem points manually. "
 
 HELP_TEXT = "\n" \
-            "1 Choose the character you want to work with by choosing one of his controllers.\n" \
-            "2 If you need to cache one dynamic system, click 'Bake_selaction'\n" \
-            "3 To cache all dynamic systems, choose 'Bake_all'\n" 
+            "- Choose the character you want to work with by choosing one of his controllers.\n" \
+            "- If you need to cache one dynamic system, click 'Bake_selaction'\n" \
+            "- To cache all dynamic systems, choose 'Select all systems' than 'Bake_selaction'\n" \
+            "- You can change the 'Stiffness' parameter on the root dynamic controller\n" \
+            "- To avoid wasting resources and the appearance of warnings in the command line,\n" \
+            "        turn off the dynamics on the main controller of the character"
 
-logger.handlers = []
-logging.basicConfig( format="%(asctime)s  line: %(lineno)s   - function  %(funcName)s() %(message)s")
+logging.basicConfig(format="%(asctime)s  line: %(lineno)s   - function  %(funcName)s() %(message)s")
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG) #WARNING
+logger.setLevel(logging.WARNING)   
 
 
 class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
@@ -39,6 +42,7 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
         self.__menu_bar()  # help and About script windows
         self.__label()  # text on top
         self.__buttons()
+        logger.debug(" executed user interface")
 
     def __menu_bar(self):
         menuBar = QMenuBar()
@@ -51,57 +55,48 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
         about_script_action = QAction("About script", self)
         menu.addAction(about_script_action)
         about_script_action.triggered.connect(functools.partial(self.text_dialog, "About program"))
-        logger.debug(" executed  ")
 
     def __label(self):
         self.help_label = QLabel(HELP_LABEL)
         self.verticalLayout.addWidget(self.help_label)
-        logger.debug(" executed  ")
 
     def __buttons(self):
+        logger.debug(" started")
         self.button_layout = QGridLayout()
         self.button_layout.setSpacing(3)
-        self.bake_selaction_button = QPushButton("Bake selaction")
-        self.button_layout.addWidget(self.bake_selaction_button, 0, 0, 1, 1)
-        self.bake_selaction_button.clicked.connect(functools.partial(self.button_command, True, True))
+        self.bake_all_button = QPushButton("Select all systems")
+        self.button_layout.addWidget(self.bake_all_button, 0, 0, 1, 1)
+        self.bake_all_button.clicked.connect(self.select_all_dyn_controls)
         self.unbake_selaction_button = QPushButton("Unbake selaction")
-        self.button_layout.addWidget(self.unbake_selaction_button, 1, 0, 1, 1)
-        self.unbake_selaction_button.clicked.connect(functools.partial(self.button_command, True, False))
-        self.bake_all_button = QPushButton("Bake all")
-        self.button_layout.addWidget(self.bake_all_button, 0, 1, 1, 1)
-        self.bake_all_button.clicked.connect(functools.partial(self.button_command, False, True))
-        self.unbake_all_button = QPushButton("Unbake all")
-        self.button_layout.addWidget(self.unbake_all_button, 1, 1, 1, 1)
-        self.unbake_all_button.clicked.connect(functools.partial(self.button_command, False, False))
+        self.button_layout.addWidget(self.unbake_selaction_button, 0, 1, 1, 1)
+        self.unbake_selaction_button.clicked.connect(functools.partial(self.button_command, False))
+        self.bake_selaction_button = QPushButton("Bake selaction")
+        self.button_layout.addWidget(self.bake_selaction_button, 0, 2, 1, 1)
+        self.bake_selaction_button.clicked.connect(functools.partial(self.button_command, True))
         self.verticalLayout.addLayout(self.button_layout)
-        logger.debug(" executed  ")
 
-    def button_command(self, to_selection, bake):
+    def button_command(self, bake):
         print("\n")
-        ctrl = self.get_controller()
-        if to_selection:
-            logger.debug("entered  get selection dyn curve condition")
-            #dynamics_curves = self.get_curve_from_control(ctrl)
-            dyn_curve, hair_system, nucleus = self.get_dynamics_object_from_control(ctrl)
-            dynamics_curves = [dyn_curve,]
-            
-        else:
-            logger.debug("entered  get all dyn curves condition")
-            dynamics_curves = self.get_all_dynamics_curves(ctrl)
+        controllers = self.get_controllers()
+        dynamics_curves = []
+        for ctrl in controllers:
+            dyn_curve = self.get_dynamics_object_from_control(ctrl)[0]
+            dynamics_curves.append(dyn_curve)
         if bake:
-            logger.debug("entered  bake condition")
             self.bake_curves(dynamics_curves)
         else:
-            logger.debug("entered  unbake condition")
             self.unbake_curves(dynamics_curves)
-        
-    def get_controller(self):
-        try:
-            return cmds.ls(sl=True)[0]
-        except IndexError:
+        logger.debug("Action completed successfully")
+
+    def get_controllers(self):
+        selections = cmds.ls(sl=True)
+        if selections:
+            return selections
+        else:
             cmds.error("Necessary to select character`s controller!")
-        
+
     def bake_curves(self, curve_list):
+        logger.debug(" started")
         start_time, end_time = self.get_time_range()
         self.set_time_range(start_time, end_time)
         curve_blends = [[] for x in range(len(curve_list))]
@@ -119,9 +114,9 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
             cmds.setKeyframe(blend_shape + "." + weight_attr, value=0, time=start_time, outTangentType="linear",
                              inTangentType="linear")
         self.set_time_range(start_time, end_time)
-        logger.debug(" executed  ")
 
     def unbake_curves(self, dynamics_curves):
+        logger.debug(" started")
         for each_curve in dynamics_curves:
             history = cmds.listHistory(each_curve, levels=1)
             try:
@@ -132,61 +127,47 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
                     if cmds.nodeType(each) == "transform" and each != each_curve:
                         cmds.delete(each)
                 cmds.delete(blend_node)
-                logger.debug(" executed  ")
             except IndexError:
                 cmds.warning("Curve {} has no cache!".format(each_curve))
 
-    def get_all_dynamics_curves(self, ctrl):
-        char_pfx = self.get_char_pfx(ctrl)
-        all_follicle = [x for x in cmds.ls(type='follicle') if char_pfx + ":" in x]
-        dyn_curves = []
-        for follicle in all_follicle:
-            dyn_curve_shape = cmds.connectionInfo(follicle + ".outCurve", destinationFromSource=True)[0].split('.')[
-                0]
-            dyn_curve = cmds.listRelatives(dyn_curve_shape, parent=True)[0]
-            dyn_curves.append(dyn_curve)
-        logger.debug(" executed  ")
-        return dyn_curves
+    def get_dynamics_object_from_control(self, ctrl):
+        logger.debug(" started")
+        name_space, pfx_attr = self.get_character_namespace_and_prefix(ctrl)
+        prefix = name_space + pfx_attr
+        # get dyn_curve, hair_system, nucleus
+        if cmds.objExists(prefix + "Dynamics_crv") and cmds.objExists(prefix + "_hairSystem"):
+            dyn_curve = prefix + "Dynamics_crv"
+            hair_system = prefix + "_hairSystem"
+            nucleus = \
+            [x for x in cmds.listHistory(hair_system + 'Shape', future=True) if cmds.nodeType(x) == "nucleus"][0]
+        else:
+            cmds.error("No dynamic system associated with the controller ")
+        return dyn_curve, hair_system, nucleus
 
-    def get_curve_from_control(self, ctrl):
+    def get_character_namespace_and_prefix(self, ctrl):
         if cmds.objExists(ctrl + ".prefix"):
             pfx_attr = cmds.getAttr(ctrl + ".prefix")
             name_space = ctrl.split(pfx_attr)[0]
-            logger.debug(" executed  ")
-            return [name_space + pfx_attr + "Dynamics_crv", ]
+            return name_space, pfx_attr
         else:
             cmds.error("Selected object is not part of the dynamic system !")
 
     def get_time_range(self):
         end_time = cmds.playbackOptions(q=True, max=True)
         start_time = cmds.playbackOptions(q=True, min=True)
-        logger.debug(" executed  ")
         return start_time, end_time
 
     def set_time_range(self, start_time, end_time):
-        logger.debug(" started  ")
-        ctrl = self.get_controller()
-        
+        logger.debug(" started")
+        ctrl = self.get_controllers()[0]
         dyn_curve, hair_system, nucleus = self.get_dynamics_object_from_control(ctrl)
- 
         cmds.setAttr(nucleus + ".startFrame", start_time)
         cmds.playbackOptions(e=True, min=start_time)
         cmds.playbackOptions(e=True, max=end_time)
         cmds.currentTime(start_time, edit=True)
-        logger.debug(" executed  ")
-
-    def get_char_pfx(self, ctrl):
-        char_pfx = re.findall(r"(^[A-Za-z0-9_]*):", ctrl)
-        char_pfx = char_pfx[0] if char_pfx else []
-        return char_pfx
-
-    def get_nuclius(self, ctrl):
-        char_pfx = self.get_char_pfx(ctrl)
-        nucleus = [x for x in cmds.ls(type='nucleus') if char_pfx + ":" in x][0]
-        logger.debug(" executed  ")
-        return nucleus
 
     def text_dialog(self, text_type):
+        logger.debug(" started")
         help_dialog = QMessageBox()
         help_dialog.setWindowFlags(Qt.WindowStaysOnTopHint)
         if text_type == "Help":
@@ -197,27 +178,16 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
             help_dialog.setText(ABOUT_SCRIPT)
         help_dialog.setStandardButtons(QMessageBox.Cancel)
         help_dialog.exec_()
-        logger.debug(" executed  ")
-        
-    def get_dynamics_object_from_control(self, ctrl):
-        # get chsracter namespace + prefix 
-        if cmds.objExists(ctrl + ".prefix"):
-            pfx_attr = cmds.getAttr(ctrl + ".prefix")
-            name_space = ctrl.split(pfx_attr)[0]
-            prefix = name_space+pfx_attr
-        else: 
-            cmds.error("Selected object is not part of the dynamic system !")
-        # get dyn_curve, hair_system, nucleus
-        if cmds.objExists(prefix+"Dynamics_crv") and cmds.objExists(prefix+"_hairSystem"):
-            dyn_curve = prefix+"Dynamics_crv" 
-            hair_system = prefix+"_hairSystem"  
-            nucleus = [x for x in cmds.listHistory(hair_system+'Shape', future=True ) if cmds.nodeType(x)=="nucleus"][0] 
-        else:
-            cmds.error("No dynamic system associated with the controller ")
-        return dyn_curve, hair_system, nucleus
-        
-        
-        
+
+    def select_all_dyn_controls(self):
+        logger.debug(" started")
+        ctrl = self.get_controllers()[0]
+        name_space, pfx_attr = self.get_character_namespace_and_prefix(ctrl)
+        formula = re.compile(name_space + "\w+_CT$")
+        all_controllers = [x for x in cmds.ls() if formula.match(x)]
+        controllers = [x for x in all_controllers if cmds.objExists(x + ".fk_dyn_mix")]
+        cmds.select(controllers)
+
 
 def bake_strand():
     global bake_win
@@ -227,7 +197,7 @@ def bake_strand():
         pass
     bake_win = BakeStrand()
     bake_win.show()
-    logger.debug(" window is opened")
+
 
 if __name__ == '__main__':
     bake_strand()
@@ -235,12 +205,6 @@ if __name__ == '__main__':
 
 
 
- 
- 
-
-
-
- 
 
 
 
@@ -257,7 +221,13 @@ if __name__ == '__main__':
 
 
 
- 
+
+
+
+
+
+
+
 
 
 
