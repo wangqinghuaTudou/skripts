@@ -28,7 +28,7 @@ HELP_TEXT = "\n" \
             "4 The root joint must have a parent, to which the system will be attached later\n" \
             "5 Choose 'Create dynanmics sistem'\n" \
             "\n" \
-            "To create controllers on a switch - select the nucleus, then the switch and\n" \
+            "To create driver attribute on a switch - select the nucleus, then the switch and\n" \
             "press the button 'Connect nucleus'"
 
 
