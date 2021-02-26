@@ -11,11 +11,13 @@ from an_Procedures.connect import an_connectRigVis
 from maya.app.general.mayaMixin import MayaQWidgetBaseMixin # for parent ui to maya
 
 ABOUT_SCRIPT = "\n" \
-               "Latest updates:                               \n" \
-               "3.02.2021     -add attribut prefix to control \n" \
-               "27.01.2021    -start writing                  \n" \
-               "                                              \n" \
-               "Created by Andrey Belyaev                     \n" \
+               "Latest updates:                                 \n" \
+               "26.02.2021    -added ability to scale           \n" \
+               "24.02.2021    -added choice of solvers          \n" \
+               "03.02.2021    -added attribut prefix to control \n" \
+               "27.01.2021    -start writing                    \n" \
+               "                                                \n" \
+               "Created by Andrey Belyaev                       \n" \
                "andreikin@mail.ru"
 
 HELP_LABEL = "Select a chain of bones (more than two joints) on the basis of which will be\n" \
@@ -28,9 +30,10 @@ HELP_TEXT = "\n" \
             "4 The root joint must have a parent, to which the system will be attached later\n" \
             "5 Choose 'Create dynanmics sistem'\n" \
             "\n" \
+            "For normal scaling, create a scale constraint for the group with Fk controllers\n" \
+            "\n" \
             "To create driver attribute on a switch - select the nucleus, then the switch and\n" \
             "press the button 'Connect nucleus'"
-
 
 logging.basicConfig( format="%(asctime)s  line: %(lineno)s   - function  %(funcName)s() %(message)s")
 logger = logging.getLogger()
@@ -52,12 +55,8 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         self.centralwidget = QWidget(self)
         self.setCentralWidget(self.centralwidget)
         self.verticalLayout = QVBoxLayout(self.centralwidget)
-        self.__menu_bar()  # help and About script windows
-        self.__libel()  # text on top
-        self.__option_box()
-        self.__buttons()
-
-    def __menu_bar(self):
+        
+        # menu_bar
         menu_bar = QMenuBar()
         self.setMenuBar(menu_bar)
         menu = QMenu("Help")
@@ -68,37 +67,38 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         about_script_action = QAction("About script", self)
         menu.addAction(about_script_action)
         about_script_action.triggered.connect(functools.partial(self.text_dialog, "ABOUT_PROGRAM"))
-
-    def text_dialog(self, text_type):
-        help_dialog = QMessageBox()
-        help_dialog.setWindowFlags(Qt.WindowStaysOnTopHint)
-        if text_type == "Help":
-            help_dialog.setWindowTitle("Help window")
-            help_dialog.setText(HELP_TEXT)
-        else:
-            help_dialog.setWindowTitle("About program")
-            help_dialog.setText(ABOUT_SCRIPT)
-        help_dialog.setStandardButtons(QMessageBox.Cancel)
-        help_dialog.exec_()
-        logger.debug(" executed")
-
-    def __libel(self):
+        
+        # text 
         self.help_label = QLabel(HELP_LABEL)
         self.verticalLayout.addWidget(self.help_label)
 
-    def __option_box(self):
+        # option_box 
         self.option_box = QGroupBox("Options:")
         self.option_box_layout = QVBoxLayout(self.option_box)
+        self.form_layout =  QFormLayout()
+        
         # text line Prefix
-        self.pfx_layout = QHBoxLayout()
-        self.pfx_label = QLabel("Prefix:")
-        self.pfx_layout.addWidget(self.pfx_label)
         self.pfx_lineEdit = QLineEdit(DEFAULT_PREFIX)
         regexp = QRegExp('^([A-Za-z_]+[0-9]+)$')
         validator = QRegExpValidator(regexp)
         self.pfx_lineEdit.setValidator(validator)
-        self.pfx_layout.addWidget(self.pfx_lineEdit)
-        self.option_box_layout.addLayout(self.pfx_layout)
+        label_prefix = QLabel("Prefix:")
+        self.form_layout.addRow(label_prefix,self.pfx_lineEdit)
+        
+        # combobox
+        self.solver_combobox = QComboBox()
+        self.solver_combobox.addItem("New solver")
+        self.getSolvers()
+        label_connect = QLabel("Connect to:")
+        self.form_layout.addRow(label_connect,self.solver_combobox)
+        self.option_box_layout.addLayout(self.form_layout)
+        
+        # line
+        self.line = QFrame()  
+        self.line.setFrameShape(QFrame.HLine)
+        self.line.setFrameShadow(QFrame.Sunken)
+        self.option_box_layout.addWidget(self.line)
+      
         # slider Points number
         self.curve_hLayout = QHBoxLayout()
         self.curve_label = QLabel("Points number :")
@@ -117,6 +117,7 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         self.curve_horizontal_slider.valueChanged.connect(self.curve_spin_box.setValue)
         self.curve_spin_box.valueChanged.connect(self.curve_horizontal_slider.setValue)
         self.option_box_layout.addLayout(self.curve_hLayout)
+        
         # slider Joints number
         self.horizontalLayout_2 = QHBoxLayout()
         self.joints_label = QLabel("Joints number :")
@@ -138,7 +139,7 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         self.option_box_layout.addLayout(self.horizontalLayout_2)
         self.verticalLayout.addWidget(self.option_box)
 
-    def __buttons(self):
+        # buttons 
         self.buttons_layout = QHBoxLayout()
         self.connect_nucleus_button = QPushButton("Connect nucleus")
         self.buttons_layout.addWidget(self.connect_nucleus_button)
@@ -147,6 +148,20 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         self.buttons_layout.addWidget(self.create_button)
         self.verticalLayout.addLayout(self.buttons_layout)
         self.create_button.clicked.connect(self.create_rig)
+        logger.debug("ui executed")
+
+    def text_dialog(self, text_type):
+        help_dialog = QMessageBox()
+        help_dialog.setWindowFlags(Qt.WindowStaysOnTopHint)
+        if text_type == "Help":
+            help_dialog.setWindowTitle("Help window")
+            help_dialog.setText(HELP_TEXT)
+        else:
+            help_dialog.setWindowTitle("About program")
+            help_dialog.setText(ABOUT_SCRIPT)
+        help_dialog.setStandardButtons(QMessageBox.Cancel)
+        help_dialog.exec_()
+        logger.debug(" executed")
 
 
 class HairStrandRig(HairStrand_UI):
@@ -226,6 +241,8 @@ class HairStrandRig(HairStrand_UI):
         logger.debug(" executed")
 
     def building_dynamic_curve(self):
+        
+        existing_solvers = cmds.ls(type= "nucleus")
         self.input_curve = cmds.duplicate(name=self.prefx + 'Input_crv', inputConnections=True)[0]
         mm.eval('makeCurvesDynamic 2 { "0", "0", "1", "1", "0"};')
         crv_shape = cmds.listRelatives(self.input_curve, shapes=True)[1]
@@ -247,8 +264,29 @@ class HairStrandRig(HairStrand_UI):
         self.dyn_constraint = cmds.listRelatives(dynamicConstraintShape, parent=True)[0]
         cmds.parentConstraint(self.controls[0].name, self.dyn_constraint)
         cmds.parent(self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.rig_grp)
+        
+        # handling solver
+        combo_box_value = self.solver_combobox.currentText()
+        if combo_box_value == "New solver":
+            if existing_solvers:
+                cmds.select(self.hair_sys)
+                mm.eval('assignNSolver ""')
+        else:
+            cmds.select(self.hair_sys)
+            mm.eval('assignNSolver "{}"'.format(combo_box_value)) 
+        self.refresh_combo_box_list() 
         logger.debug(" executed")
-
+        
+    def refresh_combo_box_list(self):
+        self.solver_combobox.clear()
+        self.solver_combobox.addItem("New solver")
+        self.getSolvers()
+        
+    def getSolvers(self):
+        solvers = cmds.ls(type= "nucleus")
+        for solver in solvers:
+            self.solver_combobox.addItem(solver)
+    
     def setup_mix_attribut(self):
         soft_suffix = "_soft"
         hard_suffix = "_hard"
@@ -286,6 +324,7 @@ class HairStrandRig(HairStrand_UI):
         cmds.addAttr(self.controls[0].name,
                      longName="fk_dyn_mix",
                      keyable=True,
+                     defaultValue=1,
                      minValue=0,
                      maxValue=1)
         bldShape = cmds.blendShape(self.dyn_curve, self.base_curve,
@@ -300,13 +339,18 @@ class HairStrandRig(HairStrand_UI):
         cmds.parent(self.loc, self.controls[0].name)
         an_connectRigVis(self.rig_grp, self.jointsNames)
         logger.debug(" executed")
+        for jnt in self.jointsNames:
+            cmds.connectAttr(self.fk_grp+".scale",  jnt +".scale")
+            
 
     def connect_nucleus(self):
         try:
             nucleus, switch = cmds.ls(sl=True)
         except ValueError:
             cmds.error("Select nucleus, then switch  and click the 'connect' button ")
-        cmds.addAttr(switch, ln="haer_dynamics", at="enum", en="off:on", keyable=True)
+            
+        if not cmds.objExists(switch + ".haer_dynamics"):
+            cmds.addAttr(switch, ln="haer_dynamics", at="enum", en="off:on", keyable=True)
         cmds.connectAttr(switch + ".haer_dynamics", nucleus + ".enable")
         logger.debug(" executed")
 
@@ -321,5 +365,9 @@ def hair_strand_rig():
     dyn_win.show()
     logger.debug(" window is opened")
 
+
 if __name__ == '__main__':
-    hair_strand_rig()
+        hair_strand_rig()
+ 
+ 
+    
