@@ -8,11 +8,13 @@ import logging
 from maya.app.general.mayaMixin import MayaQWidgetBaseMixin  # for parent ui to maya
 
 ABOUT_SCRIPT = "\n" \
-               "Latest updates:                \n" \
-               "12.02.2021   -refactoring      \n" \
-               "3.02.2021    -start writing    \n" \
-               "                               \n" \
-               "Created by Andrey Belyaev      \n" \
+               "Latest updates:                          \n" \
+               "                                         \n" \
+               "03.03.2021   -add start time offset      \n" \
+               "12.02.2021   -refactoring                \n" \
+               "03.02.2021   -start writing              \n" \
+               "                                         \n" \
+               "Created by Andrey Belyaev                \n" \
                "andreikin@mail.ru"
 
 HELP_LABEL = "Select the required character dynamics controller and click bake dynamics. \n" \
@@ -26,9 +28,11 @@ HELP_TEXT = "\n" \
             "- To avoid wasting resources and the appearance of warnings in the command line,\n" \
             "        turn off the dynamics on the main controller of the character"
 
+START_TIME_OFFSET = 30
+
 logging.basicConfig(format="%(asctime)s  line: %(lineno)s   - function  %(funcName)s() %(message)s")
 logger = logging.getLogger()
-logger.setLevel(logging.WARNING)   
+logger.setLevel(logging.WARNING)
 
 
 class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
@@ -39,12 +43,8 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
         self.verticalLayout = QVBoxLayout(self.central_widget)
-        self.__menu_bar()  # help and About script windows
-        self.__label()  # text on top
-        self.__buttons()
-        logger.debug(" executed user interface")
 
-    def __menu_bar(self):
+        # help and About script windows menu_bar
         menuBar = QMenuBar()
         self.setMenuBar(menuBar)
         menu = QMenu("Help")
@@ -56,12 +56,11 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
         menu.addAction(about_script_action)
         about_script_action.triggered.connect(functools.partial(self.text_dialog, "About program"))
 
-    def __label(self):
+        # text on top
         self.help_label = QLabel(HELP_LABEL)
         self.verticalLayout.addWidget(self.help_label)
 
-    def __buttons(self):
-        logger.debug(" started")
+        # buttons
         self.button_layout = QGridLayout()
         self.button_layout.setSpacing(3)
         self.bake_all_button = QPushButton("Select all systems")
@@ -74,9 +73,12 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
         self.button_layout.addWidget(self.bake_selaction_button, 0, 2, 1, 1)
         self.bake_selaction_button.clicked.connect(functools.partial(self.button_command, True))
         self.verticalLayout.addLayout(self.button_layout)
+        logger.debug(" executed user interface")
 
     def button_command(self, bake):
-        print("\n")
+        """
+        Caches or removes dynamic cache .
+        """
         controllers = self.get_controllers()
         dynamics_curves = []
         for ctrl in controllers:
@@ -98,11 +100,13 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
     def bake_curves(self, curve_list):
         logger.debug(" started")
         start_time, end_time = self.get_time_range()
+        start_time -= START_TIME_OFFSET
         self.set_time_range(start_time, end_time)
         curve_blends = [[] for x in range(len(curve_list))]
         for frame in xrange(int(start_time), int(end_time + 2)):
             if frame > int(start_time + 1):
                 for i, each_curve in enumerate(curve_list):
+                    pass
                     duplicate_curve = cmds.duplicate(curve_list[i], name=curve_list[i] + str(i))[0]
                     curve_blends[i].append(duplicate_curve)
             cmds.currentTime(frame, edit=True)
@@ -113,7 +117,8 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
                              inTangentType="linear")
             cmds.setKeyframe(blend_shape + "." + weight_attr, value=0, time=start_time, outTangentType="linear",
                              inTangentType="linear")
-        self.set_time_range(start_time, end_time)
+        self.set_time_range(start_time+START_TIME_OFFSET, end_time)
+
 
     def unbake_curves(self, dynamics_curves):
         logger.debug(" started")
@@ -201,36 +206,3 @@ def bake_strand():
 
 if __name__ == '__main__':
     bake_strand()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
