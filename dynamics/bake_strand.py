@@ -10,6 +10,7 @@ from maya.app.general.mayaMixin import MayaQWidgetBaseMixin  # for parent ui to 
 ABOUT_SCRIPT = "\n" \
                "Latest updates:                          \n" \
                "                                         \n" \
+               "03.03.2021   -add stop comand            \n" \
                "03.03.2021   -add start time offset      \n" \
                "12.02.2021   -refactoring                \n" \
                "03.02.2021   -start writing              \n" \
@@ -38,6 +39,7 @@ logger.setLevel(logging.WARNING)
 class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
     def __init__(self):
         super(BakeStrand, self).__init__()
+        self.baking_process=False
         # Window
         self.setWindowTitle("Bake strand system")
         self.central_widget = QWidget(self)
@@ -77,7 +79,7 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
 
     def button_command(self, bake):
         """
-        Caches or removes dynamic cache .
+        Caches or removes dynamic cache.
         """
         controllers = self.get_controllers()
         dynamics_curves = []
@@ -97,19 +99,40 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
         else:
             cmds.error("Necessary to select character`s controller!")
 
+    def stop_baking(self):
+        self.baking_process=False
+    
+    
+    def button_changer(self, is_baking):
+        """
+        Changes the functionality of the button during baking.
+        """
+        self.bake_selaction_button.clicked.disconnect()
+        if is_baking:
+            self.bake_selaction_button.clicked.connect(self.stop_baking)
+            self.bake_selaction_button.setStyleSheet('QPushButton {background-color: red;}')
+            self.bake_selaction_button.setText("Stop baking")
+        else:
+            self.bake_selaction_button.clicked.connect(functools.partial(self.button_command, True))
+            self.bake_selaction_button.setStyleSheet('QPushButton {background-color: light gray;}')
+            self.bake_selaction_button.setText("Bake selaction")
+    
     def bake_curves(self, curve_list):
         logger.debug(" started")
+        self.baking_process=True
         start_time, end_time = self.get_time_range()
         start_time -= START_TIME_OFFSET
         self.set_time_range(start_time, end_time)
         curve_blends = [[] for x in range(len(curve_list))]
         for frame in xrange(int(start_time), int(end_time + 2)):
-            if frame > int(start_time + 1):
-                for i, each_curve in enumerate(curve_list):
-                    pass
-                    duplicate_curve = cmds.duplicate(curve_list[i], name=curve_list[i] + str(i))[0]
-                    curve_blends[i].append(duplicate_curve)
-            cmds.currentTime(frame, edit=True)
+            if self.baking_process:
+                if frame > int(start_time + 1):
+                    for i, each_curve in enumerate(curve_list):
+                        qApp.processEvents() #checks the state of the interface while it is baiking 
+                        self.button_changer (is_baking = True)
+                        duplicate_curve = cmds.duplicate(curve_list[i], name=curve_list[i] + str(i))[0]
+                        curve_blends[i].append(duplicate_curve)
+                cmds.currentTime(frame, edit=True)
         for i, each_curve in enumerate(curve_list):
             blend_shape = cmds.blendShape(curve_blends[i], each_curve, inBetween=True, origin="world")[0]
             weight_attr = cmds.listAttr(blend_shape + ".w", m=True)[0]
@@ -118,7 +141,7 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
             cmds.setKeyframe(blend_shape + "." + weight_attr, value=0, time=start_time, outTangentType="linear",
                              inTangentType="linear")
         self.set_time_range(start_time+START_TIME_OFFSET, end_time)
-
+        self.button_changer (is_baking = False)
 
     def unbake_curves(self, dynamics_curves):
         logger.debug(" started")
