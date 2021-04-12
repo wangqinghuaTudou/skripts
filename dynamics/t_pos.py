@@ -1,5 +1,5 @@
 import re
-
+import maya.cmds as cmds
 
 def set_t_pos(reference , ct_pattern="[\w:_]+_CT$"):
     
@@ -23,8 +23,6 @@ def set_t_pos(reference , ct_pattern="[\w:_]+_CT$"):
         
         for attr in attributes:
             if attr in space_attribute_list:
-                print ctrl+"."+attr
-                
                 val = cmds.getAttr(ctrl+"."+attr)
                 space_carrent_atributes[ctrl+"."+attr]=val
                
