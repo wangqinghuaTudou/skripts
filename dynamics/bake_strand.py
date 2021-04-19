@@ -159,17 +159,22 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
                 cmds.warning("Curve {} has no cache!".format(each_curve))
 
     def get_dynamics_object_from_control(self, ctrl):
-        logger.debug(" started")
-        name_space, pfx_attr = self.get_character_namespace_and_prefix(ctrl)
-        prefix = name_space + pfx_attr
-        # get dyn_curve, hair_system, nucleus
-        if cmds.objExists(prefix + "Dynamics_crv") and cmds.objExists(prefix + "_hairSystem"):
-            dyn_curve = prefix + "Dynamics_crv"
-            hair_system = prefix + "_hairSystem"
-            nucleus = \
-            [x for x in cmds.listHistory(hair_system + 'Shape', future=True) if cmds.nodeType(x) == "nucleus"][0]
-        else:
-            cmds.error("No dynamic system associated with the controller ")
+        # Get the controller responsible for the dynamics
+        try:
+            while not cmds.objExists(ctrl + ".fk_dyn_mix"):
+                ctrl = cmds.listRelatives(ctrl, p=True)[0]
+        except TypeError:
+            cmds.error("No dynamic system associated with the controller!")
+
+        # Get dynamics objects
+        dyn_curve, hair_system, nucleus = None, None, None
+        for hair_system in cmds.ls(type="hairSystem"):
+            if ctrl in cmds.listHistory(hair_system, levels=2):
+                nucleus = [x for x in cmds.listHistory(hair_system, future=True) if cmds.nodeType(x) == "nucleus"][0]
+                dyn_curve = [x for x in cmds.ls(type="nurbsCurve") if hair_system in cmds.listHistory(x, levels=2)][0]
+                dyn_curve = cmds.listRelatives(dyn_curve, p=True)[0]
+                hair_system = cmds.listRelatives(hair_system, p=True)[0]
+                break
         return dyn_curve, hair_system, nucleus
 
     def get_character_namespace_and_prefix(self, ctrl):
