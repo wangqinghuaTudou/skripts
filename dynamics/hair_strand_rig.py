@@ -11,13 +11,15 @@ from an_Procedures.connect import an_connectRigVis
 from maya.app.general.mayaMixin import MayaQWidgetBaseMixin # for parent ui to maya
 
 ABOUT_SCRIPT = "\n" \
-               "Latest updates:                                 \n" \
-               "26.02.2021    -added ability to scale           \n" \
-               "24.02.2021    -added choice of solvers          \n" \
-               "03.02.2021    -added attribut prefix to control \n" \
-               "27.01.2021    -start writing                    \n" \
-               "                                                \n" \
-               "Created by Andrey Belyaev                       \n" \
+               "Latest updates:                                     \n" \
+               "31.05.2021    -added 'Add polygonal geometry' item  \n" \
+               "31.05.2021    -added Change range menu              \n" \
+               "26.02.2021    -added ability to scale               \n" \
+               "24.02.2021    -added choice of solvers              \n" \
+               "03.02.2021    -added attribut prefix to control     \n" \
+               "27.01.2021    -start writing                        \n" \
+               "                                                    \n" \
+               "Created by Andrey Belyaev                           \n" \
                "andreikin@mail.ru"
 
 HELP_LABEL = "Select a chain of bones (more than two joints) on the basis of which will be\n" \
@@ -33,7 +35,13 @@ HELP_TEXT = "\n" \
             "For normal scaling, create a scale constraint for the group with Fk controllers\n" \
             "\n" \
             "To create driver attribute on a switch - select the nucleus, then the switch and\n" \
-            "press the button 'Connect nucleus'"
+            "press the button 'Connect nucleus'\n" \
+            "\n" \
+            "To create polygonal roup, specify the prefix, the number of bones and select\n" \
+            "the curve, on the basis of which the geometry will be built."
+            
+            
+            
 
 logging.basicConfig( format="%(asctime)s  line: %(lineno)s   - function  %(funcName)s() %(message)s")
 logger = logging.getLogger()
@@ -41,9 +49,9 @@ logger.handlers = []
 logger.setLevel(logging.WARNING)
 
 DEFAULT_PREFIX = "hairsStrand"
-MAX_VERTEX_NUM = 40
+MAX_VERTEX_NUM = 50
 DEFAULT_VERTEX_NUM = 4
-MAX_JOINT_NUM = 40
+MAX_JOINT_NUM = 50
 DEFAULT_JOINT_NUM = 12
 POINT_NUM_IN_DYN_CONSTRAINT = 2
 
@@ -67,6 +75,25 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         about_script_action = QAction("About script", self)
         menu.addAction(about_script_action)
         about_script_action.triggered.connect(functools.partial(self.text_dialog, "ABOUT_PROGRAM"))
+        
+        val_menu = QMenu("Change range")
+        menu_bar.addMenu(val_menu)
+        max_action = QAction("Set range 800", self)
+        val_menu.addAction(max_action)
+        max_action.triggered.connect(lambda: self.set_maximum_values(800))
+        mid_action = QAction("Set range 400", self)
+        val_menu.addAction(mid_action)
+        mid_action.triggered.connect(lambda: self.set_maximum_values(400))
+        min_action = QAction("Set range 50", self)
+        val_menu.addAction(min_action)
+        min_action.triggered.connect(lambda: self.set_maximum_values(50))
+        
+        
+        misc_menu = QMenu("Misc")
+        menu_bar.addMenu(misc_menu)
+        add_skin_joints_action = QAction("Add polygonal geometry", self)
+        misc_menu.addAction(add_skin_joints_action)
+        add_skin_joints_action.triggered.connect(self.add_joint_on_curve)      
         
         # text 
         self.help_label = QLabel(HELP_LABEL)
@@ -163,7 +190,6 @@ class HairStrand_UI(MayaQWidgetBaseMixin, QMainWindow):
         help_dialog.exec_()
         logger.debug(" executed")
 
-
 class HairStrandRig(HairStrand_UI):
     def create_rig(self):
         self.get_data_from_ui()
@@ -177,6 +203,12 @@ class HairStrandRig(HairStrand_UI):
             an_connectRigVis(self.rig_grp,
                              [self.input_curve, self.hair_sys, self.dyn_curve_grp, self.dyn_constraint, self.loc, ])
             print("Strand rigging successfully complete.")
+            
+    def set_maximum_values(self, val):
+        self.curve_horizontal_slider.setRange(1, val)
+        self.joints_horizontal_slider.setRange(3, val)
+        self.curve_spin_box.setMaximum(val)
+        self.joints_spin_box.setMaximum(val)
 
     def get_data_from_ui(self):
         self.prefx = self.pfx_lineEdit.text()
@@ -241,7 +273,6 @@ class HairStrandRig(HairStrand_UI):
         logger.debug(" executed")
 
     def building_dynamic_curve(self):
-        
         existing_solvers = cmds.ls(type= "nucleus")
         self.input_curve = cmds.duplicate(name=self.prefx + 'Input_crv', inputConnections=True)[0]
         mm.eval('makeCurvesDynamic 2 { "0", "0", "1", "1", "0"};')
@@ -333,6 +364,13 @@ class HairStrandRig(HairStrand_UI):
         cmds.connectAttr(self.controls[0].name + ".fk_dyn_mix", bldShape + "." + self.dyn_curve)
         logger.debug(" executed")
 
+    def add_joint_on_curve(self):
+        self.prefx = self.pfx_lineEdit.text()
+        self.base_curve = cmds.ls(sl=True)
+        self.joint_number = self.joints_horizontal_slider.value()
+        self.loc, self.jointsNames, skin_jnt_grp = jntOnCurvNonSpline(self.base_curve, self.joint_number, self.prefx)
+
+
     def add_skin_joints(self):
         self.loc, self.jointsNames, skin_jnt_grp = jntOnCurvNonSpline(self.base_curve, self.joint_number, self.prefx)
         cmds.parent(skin_jnt_grp, self.rig_grp)
@@ -367,7 +405,6 @@ def hair_strand_rig():
 
 
 if __name__ == '__main__':
-        hair_strand_rig()
- 
- 
-    
+    #hair_strand_rig()
+    dyn_win = HairStrandRig()
+    dyn_win.show() 
