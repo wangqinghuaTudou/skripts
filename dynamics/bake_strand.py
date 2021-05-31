@@ -130,16 +130,21 @@ class BakeStrand(MayaQWidgetBaseMixin, QMainWindow):
                     for i, each_curve in enumerate(curve_list):
                         qApp.processEvents() #checks the state of the interface while it is baiking 
                         self.button_changer (is_baking = True)
-                        duplicate_curve = cmds.duplicate(curve_list[i], name=curve_list[i] + str(i))[0]
+                        c_time = int(cmds.currentTime( query=True ))
+                        duplicate_curve = cmds.duplicate(curve_list[i], name=curve_list[i] + str(c_time))[0]
                         curve_blends[i].append(duplicate_curve)
                 cmds.currentTime(frame, edit=True)
+                
         for i, each_curve in enumerate(curve_list):
-            blend_shape = cmds.blendShape(curve_blends[i], each_curve, inBetween=True, origin="world")[0]
-            weight_attr = cmds.listAttr(blend_shape + ".w", m=True)[0]
-            cmds.setKeyframe(blend_shape + "." + weight_attr, value=1, time=end_time, outTangentType="linear",
-                             inTangentType="linear")
-            cmds.setKeyframe(blend_shape + "." + weight_attr, value=0, time=start_time, outTangentType="linear",
-                             inTangentType="linear")
+            blend_shape = cmds.blendShape(curve_blends[i], each_curve, inBetween=False, origin="world")[0]
+            for crv in curve_blends[i]:
+                result = re.search(r"_crv(_?\d+$)", crv).group(1)
+                crv = crv.rsplit(":")[-1]
+                frame = int(result.replace("_", "-")) if "_" in result else int(result)
+                cmds.setKeyframe ( blend_shape+"."+crv, time=frame-1, value=0)
+                cmds.setKeyframe ( blend_shape+"."+crv, time=frame, value=1)
+                cmds.setKeyframe ( blend_shape+"."+crv, time=frame+1, value=0)
+ 
         self.set_time_range(start_time+START_TIME_OFFSET, end_time)
         self.button_changer (is_baking = False)
 
