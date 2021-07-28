@@ -15,19 +15,44 @@ def dynamics_tools ():
 
 
 def playback_options(par):
-    def_st_val = -20 #cmds.playbackOptions(q=True,  min=True)-30
-    def_mid_val = 1#cmds.playbackOptions(q=True,  min=True)
-    def_max_val = cmds.playbackOptions(q=True,  max=True)+1
+    st_dyn_val = -20
+    def_mid_val = cmds.playbackOptions(q=True,  min=True)
+    def_max_val = cmds.playbackOptions(q=True,  max=True)
+    end_dyn_val = 10
+    
     cmds.rowColumnLayout('Layout', nc =4,  p=par)
-    cmds.text('', al='left',  width= 140)
-    cmds.textField('stField', tx= def_st_val )
-    cmds.textField('midField', tx=def_mid_val )
-    cmds.textField('endField', tx=def_max_val)
+    cmds.text('  Input offset', al='left',  width= 105)
+    cmds.text('  Start', al='left',  width= 105)
+    cmds.text('  End', al='left',  width= 105)
+    cmds.text('  Output offset', al='left',  width= 105)
+    cmds.textField('stField', tx= st_dyn_val, w=105 )
+    cmds.textField('midField', tx=def_mid_val, w=105)
+    cmds.textField('endField', tx=def_max_val, w=105)
+    cmds.textField('mbField', tx="+"+str(end_dyn_val), w=105)
+    
     cmds.rowColumnLayout('Layout2', nc=3, p=par)
-    cmds.button(l='Set previos', c= 'comand("ttt")', w=140)
-    cmds.button(l='Set all', c='comand("all")', w=140)
+    cmds.button(l='Set previos', c= 'comand("previos")', w=140)
+    cmds.button(l='Set dynamics', c='comand("dynamics")', w=140)
     cmds.button(l='Set render', c='comand("render")', w=140)
 
+def comand(typeF):
+    st_dyn_val = cmds.textField('stField', q=1, tx=1)
+    midF = cmds.textField('midField', q=1, tx=1)
+    endF = cmds.textField('endField', q=1, tx=1)
+    mbF = cmds.textField('mbField', q=1, tx=1)
+    mbF = mbF[1:] if mbF[0]== "+" else mbF
+
+    if typeF == 'render':
+        mn, mx = midF, endF
+    elif typeF == 'previos':
+        mn = float(midF)+float(st_dyn_val)
+        mx = midF
+    else:
+        mn = float(midF)+float(st_dyn_val)
+        mx = float(endF)+float(mbF)
+    cmds.playbackOptions(min=mn)
+    cmds.playbackOptions(max=mx)
+ 
 def dynamic_version(par):
     cmds.columnLayout(  p=par,)
     w=420
@@ -66,25 +91,6 @@ def refToDynVersion():
     if os.path.isfile(dynPath):
         cmds.file(dynPath, loadReference=refNodes)
 
-
-def comand(typeF):
-    startF = cmds.textField('stField', q=1, tx=1)
-    midF = cmds.textField('midField', q=1, tx=1)
-    endF = cmds.textField('endField', q=1, tx=1)
-    if typeF == 'render':
-        mn, mx = midF, endF
-    elif typeF == 'all':
-        mn, mx = startF, endF
-    else:
-        mn, mx = startF, midF
-    cmds.playbackOptions(min=mn)
-    cmds.playbackOptions(max=mx)
-
-
-
-
-      
-
 def selNucleus():
     cmds.select([ x for x in   cmds.ls ()   if  cmds.nodeType(x) == 'nucleus' ])
 
@@ -116,9 +122,6 @@ def getAlembikPath():
     raw_name, extension = os.path.splitext(filename)
     return path.split('dyn/work')[0]+"cache/alembic/dyn/"
     
-  
-   
-
 def openFolder():
     import subprocess
     if os.path.exists(getAlembikPath()): 
