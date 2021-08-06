@@ -11,29 +11,27 @@ def dynamics_tools ():
     export_alembicUI(leyouts[2])
 
 
-#dynamics_tools ()  
-
-
 def playback_options(par):
-    st_dyn_val = -20
-    def_mid_val = cmds.playbackOptions(q=True,  min=True)
+    st_dyn_val = -21
+    def_mid_val = 1 #cmds.playbackOptions(q=True,  min=True)
     def_max_val = cmds.playbackOptions(q=True,  max=True)
-    end_dyn_val = 10
+    end_dyn_val = 1
     
     cmds.rowColumnLayout('Layout', nc =4,  p=par)
     cmds.text('  Input offset', al='left',  width= 105)
     cmds.text('  Start', al='left',  width= 105)
     cmds.text('  End', al='left',  width= 105)
-    cmds.text('  Output offset', al='left',  width= 105)
+    cmds.text('  Add MB frames', al='left',  width= 105)
     cmds.textField('stField', tx= st_dyn_val, w=105 )
     cmds.textField('midField', tx=def_mid_val, w=105)
     cmds.textField('endField', tx=def_max_val, w=105)
     cmds.textField('mbField', tx="+"+str(end_dyn_val), w=105)
     
-    cmds.rowColumnLayout('Layout2', nc=3, p=par)
-    cmds.button(l='Set previos', c= 'comand("previos")', w=140)
-    cmds.button(l='Set dynamics', c='comand("dynamics")', w=140)
-    cmds.button(l='Set render', c='comand("render")', w=140)
+    cmds.rowColumnLayout('Layout2', nc=3, p=par, columnSpacing = [(2,2),(3,2)])
+    cmds.button(l='Set previos', c= 'comand("previos")', w=103)
+    cmds.button(l='Set render', c='comand("render")', w=208)
+    cmds.button(l='Set dynamics', c='comand("dynamics")', w=103)
+    
 
 def comand(typeF):
     st_dyn_val = cmds.textField('stField', q=1, tx=1)
@@ -64,7 +62,7 @@ def dynamic_version(par):
 def export_alembicUI(par):
     cmds.columnLayout('pathCL',    p=par)
     cmds.textField('pathField',  w=420, tx=getAlembikPath())
-    cmds.rowColumnLayout('pathRCL', nc =3,  p=par)
+    cmds.rowColumnLayout('pathRCL', nc =3,  p=par, columnSpacing = [(2,2),(3,2)])
     cmds.button(l='Referens out path', c="cmds.textField('pathField',  e=True, tx=getAlembikPath())", w=140  )
     cmds.button(l='Open out folder', c='openFolder()', w=140  )
     cmds.button(l='Export alembic', c='exportAlembik()', w=140)
@@ -130,11 +128,8 @@ def openFolder():
         os.system( r'Explorer "%s"' % os.path.abspath( getAlembikPath()[:-5]  ))
 
 
-#dynamics_tools ()  
- 
-
-
-
+if __name__ == '__main__':
+    dynamics_tools ()
 
 
 
