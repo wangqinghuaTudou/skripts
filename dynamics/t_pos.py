@@ -1,3 +1,5 @@
+from Core import Environment, Job, Debug, TracebackHandle
+
 import re
 import maya.cmds as cmds
 
@@ -58,9 +60,13 @@ def set_t_pos(reference, ct_pattern="[\w:_]+_CT$"):
     for ctrl in node_list:
         attributes = [x.split("_default")[0] for x in cmds.listAttr(ctrl) if "_default" in x]
         for attr in attributes:
-            val = cmds.getAttr(ctrl + "." + attr)
-            final_values.append([ctrl, attr, val])
-
+            try:
+                val = cmds.getAttr(ctrl + "." + attr)
+                final_values.append([ctrl, attr, val])
+            except Exception as exception_data:
+                Debug.Warning(exception_data)
+                Debug.Warning(TracebackHandle.GetTraceback())
+                
     cmds.delete(locatots)
 
     # set final attributes values
@@ -72,15 +78,13 @@ def set_t_pos(reference, ct_pattern="[\w:_]+_CT$"):
             Debug.Warning(exception_data)
             Debug.Warning(TracebackHandle.GetTraceback())
 
-
-
 def t_pos():
     reference=cmds.referenceQuery (cmds.ls(sl=True)[0], referenceNode=True)
     set_t_pos(reference , ct_pattern="[\w:_]+_CT$")
+ 
 
 
  
-
 
 
 
