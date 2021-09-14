@@ -15,25 +15,29 @@ from an_classSkin import *
 #info['scaleObj']= 'general_CT'
 #info['geo']=True
 #info['subAx'] = 12
- 
 
 
-
-def setCylinderWheight( geo, rSub=8): 
+def setCylinderWheight(geo, rSub=8):
     self = AnSkinSys(geo)
     self.getSkinWeights()
     jnts = self.weightList.keys()
     jnts.sort()
-    
     pNum = len(self.weightList[jnts[0]])
+
     for i in range(len(jnts)):
-        self.weightList[jnts[i]] = [0]*pNum
-        for j in range( i*rSub, i*rSub+rSub) :
+        self.weightList[jnts[i]] = [0] * pNum
+        for j in range(i * rSub, i * rSub + rSub):
             self.weightList[jnts[i]][j] = 1
-    for j in range(pNum-rSub, pNum): 
+    for j in range(pNum - rSub, pNum):
         self.weightList[jnts[-1]][j] = 1
-    self.setSkinWeights () 
- 
+    # set value 1 for second jnt (0-Sub range of points)
+    for j in range(rSub):
+        self.weightList[jnts[1]][j] = 1
+    # remove first jnt from cluster
+    del self.weightList[jnts[0]]
+
+    self.setSkinWeights()
+
 
 
 def an_twistSegment (info):
