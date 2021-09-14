@@ -42,13 +42,19 @@ weight list metods:
     
 '''
 
-def insertSkinGeo():
-    sers, targ = cmds.ls(sl=True)   # insert to skin
-    self = AnSkinSys(targ) 
-    self.getSkinWeights()  
-    self.insertJointsToWeightList (sers,  AnSkinSys('').getMutualJoint( self.skinGeo, sers)[0] )
-    #self.insertJointsToWeightList (sers, 'l_foreArm_jnt' )
-    self.setSkinWeights () 
+
+# mutual_joint = 'l_foreArm_jnt'
+
+def insertSkinGeo(mutual_joint=""):
+    sers, targ = cmds.ls(sl=True)  # insert to skin
+    self = AnSkinSys(targ)
+    self.getSkinWeights()
+
+    if not mutual_joint:
+        mutual_joint = AnSkinSys('').getMutualJoint(self.skinGeo, sers)[0]
+
+    self.insertJointsToWeightList(sers, mutual_joint)
+    self.setSkinWeights()
 
 
 #----------------------------------------------------------------------------------------------- 
