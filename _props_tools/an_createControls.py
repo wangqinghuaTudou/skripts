@@ -7,8 +7,8 @@ import re
 
 def an_createControls():
     ctList = ['general', 'fk', 'sphere', 'switch', 'kross', 'circle',   'head', 'headAim',  'handIk',  'torso', 'shoulder', 'body', 'fkBody', 'legIk', 'curvedArrow']
-    leyaut = an_turnBasedUi('ct', title ='Controllers criater',  stepsLabel =['select type and click create', ])[0]
-    cmds.setParent(leyaut)
+    leyaut = an_turnBasedUi('ct', title ='Controllers criater',  stepsLabel =['Select type and click create', 'Add visProps to ct, and connect geometry'], stepNum=False)
+    cmds.setParent(leyaut[0])
     cmds.rowColumnLayout(numberOfColumns=5, columnAttach=[1, 'left', 20],  columnWidth= [ (1, 55), (2, 100), (3, 120),   (4, 60),    (5, 30)], rs =[1, 2] )
     cmds.text( label=' Name: ' )
     cmds.textField( 'nameTF')
@@ -21,6 +21,18 @@ def an_createControls():
            width=80, \
            command='crCt()')
     cmds.separator(height=1, style='none')
+    
+    cmds.button('pvRenRunButt', \
+       label='Connect', \
+       width=80, \
+       parent = leyaut[1], \
+       command='add_visProps_to_ct()')
+    
+def add_visProps_to_ct(attr = "visProps"):
+    ct, geo = cmds.ls(sl = True)
+    cmds.addAttr(ct, ln=attr,  at="bool", keyable=True, defaultValue=True)
+    cmds.connectAttr(ct+"."+attr, geo+".v")
+    
  
 def crCt():
     nameLocator=''
