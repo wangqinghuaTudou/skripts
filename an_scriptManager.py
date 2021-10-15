@@ -2,11 +2,9 @@
 import maya.mel as mm
 import maya.cmds as cmds
 import os, sys
-
 from PySide2 import QtCore, QtWidgets
 from PySide2.QtCore import QSettings
 
-PATH = r"D:\\andreikin\skripts"
 PROCEDURES = 'procedures'
 FORBID_LIST = [PROCEDURES, 'pvCreatePSDposes', 'pvImportAllModules', 'an_scriptManager', 'an_scriptManager2', ".idea", ".git"]
 
@@ -15,43 +13,27 @@ def scriptManager(path=""):
     p_menu = 'an_menu'
     if cmds.menu (p_menu, exists=True):  cmds.deleteUI (p_menu)
     cmds.menu (p_menu, l='Scripts', p='MayaWindow', tearOff=True)
-
-    path = settings_manager()
+    if not path:
+        path = QSettings("scriptManager", "Settings").value("path")
     if path:
         sourceProcedures (os.path.abspath(path))
         checkContent(path, p_menu)
         print 'Script manager loading scripts from: ', path
     cmds.menuItem(divider=True, p=p_menu)
-    cmds.menuItem("set path", l="Set path to scripts folder", p=p_menu, c='settings_manager("reset")')
+    cmds.menuItem("set path", l="Set path to scripts folder", p=p_menu, c='set_path()')
 
-def settings_manager(action="load"):  # action = "reset" - reset path manualy
+def set_path():  # action = "reset" - reset path manually
 
-    settings = QSettings("scriptManager", "Settings")
-    path = None
-
-    if action == "reset":
-        path = QtWidgets.QFileDialog.getExistingDirectory(directory=QtCore.QDir.currentPath())
-        settings.setValue("path", path)
-        scriptManager(path)
-
-    elif action == "load":
-        if settings.contains("scriptManager"):
-            path = settings.value("path")
-    else:
-        settings.remove("path")
-        print "Path removed"
-
-    if path:
-        return path
-    else:
-        return None
+    path = QtWidgets.QFileDialog.getExistingDirectory(directory=QtCore.QDir.currentPath())
+    QSettings("scriptManager", "Settings").setValue("path", path)
+    scriptManager(path)
+    #QSettings("scriptManager", "Settings").remove("path")
 
 def sort_path(path):
     directories = sorted([d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d)) and d!=".git"  ])
     files_py = sorted([f[:-3] for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f[-3:]=='.py' ])
     files_mel = sorted([f[:-4] for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f[-4:]=='.mel' ])
     return directories, files_py, files_mel
-
 
 def get_folders_path(rootDir, fld):
        global procPath
@@ -70,7 +52,6 @@ def sourceProcedures (path):
         directories, files_py, files_mel = sort_path(procPath)
         if not procPath  in list(sys.path):
             sys.path.insert(0, procPath )
-
 
 def checkContent (path, p_menu):
     directories, files_py, files_mel = sort_path(path)
