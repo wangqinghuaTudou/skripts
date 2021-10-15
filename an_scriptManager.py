@@ -1,3 +1,45 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Main Procedure:
+    scriptManager()
+
+Creation Date:
+    march 27, 2020
+
+Authors:
+    Belyaev Andrey
+    andreikin@mail.ru
+
+Description:
+    Creates a menu "Scripts" and loads a hierarchy of scripts into it.
+
+Installation:
+
+    1. Save the an_scriptManager.py to your local user/scripts folder
+	                   example: ../my documents/maya/scripts/
+	2. Add a few lines to the file userSetup.py:
+            	    import maya.cmds as cmds
+                    cmds.evalDeferred('from an_scriptManager import *')
+	3. Start Maya
+
+Comments or suggestions? E-mail me!!!
+Good luck!!!
+
+*************************************************************************************************************************
+ version History
+*************************************************************************************************************************
+	v3.0
+	- Add set path command
+	- Edit an_sourceProcedures
+	- Edit discription
+	- Find procedures in hierarhy
+	- Add script description.
+	- Completed the second version
+*************************************************************************************************************************
+ Modify at your own risk
+"""
 
 import maya.mel as mm
 import maya.cmds as cmds
@@ -7,7 +49,6 @@ from PySide2.QtCore import QSettings
 
 PROCEDURES = 'procedures'
 FORBID_LIST = [PROCEDURES, 'pvCreatePSDposes', 'pvImportAllModules', 'an_scriptManager', 'an_scriptManager2', ".idea", ".git"]
-
 
 def scriptManager(path=""):
     p_menu = 'an_menu'
@@ -22,8 +63,7 @@ def scriptManager(path=""):
     cmds.menuItem(divider=True, p=p_menu)
     cmds.menuItem("set path", l="Set path to scripts folder", p=p_menu, c='set_path()')
 
-def set_path():  # action = "reset" - reset path manually
-
+def set_path():
     path = QtWidgets.QFileDialog.getExistingDirectory(directory=QtCore.QDir.currentPath())
     QSettings("scriptManager", "Settings").setValue("path", path)
     scriptManager(path)
