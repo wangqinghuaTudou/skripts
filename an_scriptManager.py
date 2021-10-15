@@ -1,95 +1,50 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""
-Main Procedure:
-    scriptManager()
-
-Creation Date:
-    march 27, 2020
-
-Authors:
-    Belyaev Andrey
-    andreikin@mail.ru
-
-Description:
-    Creates a menu "Scripts" and loads a hierarchy of scripts into it.
-
-Installation:
-
-    1. Edit the constant PATH in the code if you want to load scripts
-       from the necessary folder, while the second variable SCRIPTS_FOLDER should be empty:
-
-            PATH = r'D:\Project\scripts'
-            SCRIPTS_FOLDER = r''
-
-    2. If you want to load scripts from the folder ../my documents/maya/scripts/
-       do not specify any paths:
-
-            PATH = r''
-            SCRIPTS_FOLDER = r''
-
-
-    3. If you want to load scripts from the folder located inside ../my documents/maya/scripts/riggingTools
-       specify its name in the SCRIPTS_FOLDER variable, and do not specify any paths in PATH :
-
-            PATH = r''
-            SCRIPTS_FOLDER = r'riggingTools'
-
-    4 Edit the constant PROCEDURES in the code if you want add its path to systems paths
-
-    5. Save the an_scriptManager.py to your local user/scripts folder
-	                   example: ../my documents/maya/scripts/
-
-	6. Add a few lines to the file userSetup.py:
-
-            	    import maya.cmds as cmds
-                    cmds.evalDeferred('from an_scriptManager import *')
-
-	7. Start Maya
-
-Comments or suggestions? E-mail me!!!
-Good luck!!!
-
-*************************************************************************************************************************
- version History
-*************************************************************************************************************************
-	v2.0
-	- Edit an_sourceProcedures
-	- Edit discription
-	- Find procedures in hierarhy
-	- Add script description.
-	- Completed the second version
-*************************************************************************************************************************
- Modify at your own risk
-"""
 
 import maya.mel as mm
 import maya.cmds as cmds
 import os, sys
 
-PATH = r"D:/Distributiv/scripts"
-SCRIPTS_FOLDER = ''
+from PySide2 import QtCore, QtWidgets
+from PySide2.QtCore import QSettings
+
+PATH = r"D:\\andreikin\skripts"
 PROCEDURES = 'procedures'
 FORBID_LIST = [PROCEDURES, 'pvCreatePSDposes', 'pvImportAllModules', 'an_scriptManager', 'an_scriptManager2', ".idea", ".git"]
 
-def scriptManager(path ='', scriptFolder=''):
+
+def scriptManager(path=""):
     p_menu = 'an_menu'
     if cmds.menu (p_menu, exists=True):  cmds.deleteUI (p_menu)
     cmds.menu (p_menu, l='Scripts', p='MayaWindow', tearOff=True)
-    if not path:
-        if __name__ == '__main__':
-            path = os.path.abspath('C:\Users\Mi\Documents\maya\scripts')
-        else:
-            path = os.path.split(str(os.path.abspath(__file__)))[0]+'\\'
-    else:
-        path = os.path.abspath(path)
 
-    if scriptFolder:
-        path =  os.path.join(path, scriptFolder)
-    print 'Script manager loading scripts from: ', path
-    an_sourceProcedures (os.path.abspath(path))
-    an_checkContent (path, p_menu)
+    path = settings_manager()
+    if path:
+        sourceProcedures (os.path.abspath(path))
+        checkContent(path, p_menu)
+        print 'Script manager loading scripts from: ', path
+    cmds.menuItem(divider=True, p=p_menu)
+    cmds.menuItem("set path", l="Set path to scripts folder", p=p_menu, c='settings_manager("reset")')
+
+def settings_manager(action="load"):  # action = "reset" - reset path manualy
+
+    settings = QSettings("scriptManager", "Settings")
+    path = None
+
+    if action == "reset":
+        path = QtWidgets.QFileDialog.getExistingDirectory(directory=QtCore.QDir.currentPath())
+        settings.setValue("path", path)
+        scriptManager(path)
+
+    elif action == "load":
+        if settings.contains("scriptManager"):
+            path = settings.value("path")
+    else:
+        settings.remove("path")
+        print "Path removed"
+
+    if path:
+        return path
+    else:
+        return None
 
 def sort_path(path):
     directories = sorted([d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d)) and d!=".git"  ])
@@ -107,7 +62,7 @@ def get_folders_path(rootDir, fld):
            if os.path.isdir(path):
                get_folders_path(path, fld)
 
-def an_sourceProcedures (path):
+def sourceProcedures (path):
     global procPath
     procPath = ''
     get_folders_path(path, 'procedures')
@@ -117,12 +72,12 @@ def an_sourceProcedures (path):
             sys.path.insert(0, procPath )
 
 
-def an_checkContent (path, p_menu):
+def checkContent (path, p_menu):
     directories, files_py, files_mel = sort_path(path)
     for fld in [d for d in directories if not d in FORBID_LIST]:
         cmds.menuItem ( fld+"name", l=fld, tearOff=True, sm=True, p=p_menu)
         if os.listdir(os.path.join(path, fld)) :
-            an_checkContent ( os.path.join(path, fld) , fld+"name" )
+            checkContent ( os.path.join(path, fld) , fld+"name" )
 
     if directories: cmds.menuItem (divider=True,  p=p_menu)
 
@@ -148,4 +103,11 @@ def run_python(data):
         sys.path.insert(0, path)
     cmds.evalDeferred('from '+ fl +' import *; '+fl+'()')
 
-scriptManager(PATH, SCRIPTS_FOLDER)
+def get_defoult_scripts_dir():
+    scriptPath = os.environ['MAYA_SCRIPT_PATH']
+    for path in scriptPath.split(";"):
+        if "Documents/maya/scripts" in path:
+            return path
+    return None
+
+scriptManager()
