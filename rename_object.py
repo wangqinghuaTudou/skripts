@@ -1,3 +1,5 @@
+import re
+
 from PySide2.QtCore import *
 from PySide2.QtGui import *
 from PySide2.QtWidgets import *
@@ -22,8 +24,8 @@ HELP_TEXT = "\n" \
             "- The button 'Select nonunique' will allow you to find objects in the \n" \
             "      scene that need to be renamed to prevent problems in the future."
 
-PREFFIX_LIST = ['none', 'l_', 'r_', 'L_', 'R_', 'up_', 'dw_', 'fv_', 'bk_', 'lo_', 'mid_']
-SUFFIX_LIST = ['none', '_ctrl', '_jnt', '_grp', '_loc', '_geo', '_lo']
+PREFFIX_LIST = ['none', 'L_', 'R_', 'UP_', 'DW_', 'FV_', 'l_', 'r_']
+SUFFIX_LIST = ['none', '_ctrl', '_jnt', '_grp', '_loc', '_geo', '_bind']
 DEFAULT_DIGITS = "##"
 DEFAULT_SETTINGS = [0, "", DEFAULT_DIGITS, 1]
 
@@ -35,16 +37,24 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
-        self.setFixedSize(400, 290)
+        self.setFixedSize(420, 290)
 
         # help and About script windows menu_bar
         menuBar = QMenuBar()
         self.setMenuBar(menuBar)
-        menu = QMenu("Edit")
+        menu = QMenu("Settings")
         menuBar.addMenu(menu)
+
+        self.un_name_check_box = QAction("Use only unique names", self, checkable=True)
+
+        self.un_name_check_box.setChecked(True)
+
+        menu.addAction(self.un_name_check_box)
+
         def_settings = QAction("Reset settings", self)
         menu.addAction(def_settings)
         def_settings.triggered.connect(lambda: self.set_settings(*DEFAULT_SETTINGS))
+
         menu = QMenu("Help")
         menuBar.addMenu(menu)
 
@@ -98,6 +108,11 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.button_nonunik = QPushButton('Select nonunique')
         self.button_horizontalLayout.addWidget(self.button_nonunik)
         self.button_nonunik.clicked.connect(self.select_nonunique)
+
+        self.btn_fix_nonuniq = QPushButton('Fix nonunique')
+        self.button_horizontalLayout.addWidget(self.btn_fix_nonuniq)
+        self.btn_fix_nonuniq.clicked.connect(self.rename_nonunique)
+
         self.button__hierarhy = QPushButton("Rename hierarchy")
         self.button_horizontalLayout.addWidget(self.button__hierarhy)
         self.button__hierarhy.clicked.connect(lambda: self.rename(True))
@@ -116,6 +131,11 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.lineEdit_serch = QLineEdit()
         self.lineEdit_serch.setMinimumSize(QSize(160, 20))
         self.serchGridLayout.addWidget(self.lineEdit_serch, 1, 1, 1, 1)
+
+        self.btn_add_pfx = QPushButton("Add pfx")
+        self.serchGridLayout.addWidget(self.btn_add_pfx, 1, 2, 1, 1)
+        self.btn_add_pfx.clicked.connect(lambda: self.add_pfx("serch"))
+
         self.comboBox_pfx_replace = QComboBox()
         for pfx in PREFFIX_LIST:
             self.comboBox_pfx_replace.addItem(pfx)
@@ -123,6 +143,10 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.lineEdit_replace = QLineEdit()
         self.lineEdit_replace.setMinimumSize(QSize(160, 20))
         self.serchGridLayout.addWidget(self.lineEdit_replace, 2, 1, 1, 1)
+
+        self.btn_add_pfx2 = QPushButton("Add pfx")
+        self.serchGridLayout.addWidget(self.btn_add_pfx2, 2, 2, 1, 1)
+        self.btn_add_pfx2.clicked.connect(lambda: self.add_pfx(""))
         self.raplace_box_layout.addLayout(self.serchGridLayout)
         self.layout.addWidget(self.option_box2)
 
@@ -166,19 +190,20 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.comboBox_pfx_serch.setCurrentIndex(1)
         self.comboBox_pfx_replace.setCurrentIndex(2)
 
-    def serch_and_replace(self, nierarhy):
-        pfx_srch = self.comboBox_pfx_serch.currentText()
-        pfx_rpls = self.comboBox_pfx_replace.currentText()
-
-        pfx_srch = "" if pfx_srch == 'none' else pfx_srch
-        pfx_rpls = "" if pfx_rpls == 'none' else pfx_rpls
-
-        pfx_srch += self.lineEdit_serch.text()
-        pfx_rpls += self.lineEdit_replace.text()
-        if nierarhy:
+    def serch_and_replace(self, hierarhy):
+        pfx_srch, pfx_rpls = self.__get_serch_and_replace_data()
+        if hierarhy:
             mm.eval('searchReplaceNames "' + pfx_srch + '" "' + pfx_rpls + '" "hierarchy";')
         else:
             mm.eval('searchReplaceNames "' + pfx_srch + '" "' + pfx_rpls + '" "selected";')
+
+    def add_pfx(self, pfx_part):  # pfx_part - serch or replace button (serch/replace)
+        pfx_srch, pfx_rpls = self.__get_serch_and_replace_data()
+        pfx = pfx_srch if pfx_part == "serch" else pfx_rpls
+
+        sel = cmds.ls(sl=True)
+        for obj in sel:
+            cmds.rename(obj, pfx + obj)
 
     def closeEvent(self, evt):
         """
@@ -225,7 +250,17 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
                 num = i + 1
                 objCurr = cmds.listConnections('%s.selObjects[%s]' % (node, i))[0]
                 newDigs = (digs % num)
-                result = prefix + new_name + newDigs + suffix
+
+                if self.un_name_check_box.isChecked():
+                    for j in range(1000):
+                        result = prefix + new_name + newDigs + suffix
+                        if cmds.objExists(result):
+                            num += 1
+                            newDigs = (digs % num)
+                        else:
+                            break
+                else:
+                    result = prefix + new_name + newDigs + suffix
                 cmds.select(objCurr, replace=True)
                 result = cmds.rename(result)
             cmds.delete(node)
@@ -242,6 +277,7 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
                 return 0
             else:
                 return 1
+
         rez = []
         for obj in cmds.ls():
             if not isNameUnique(obj):
@@ -276,12 +312,62 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
             suffix = ''
         return suffix
 
+    def __get_serch_and_replace_data(self):
+        pfx_srch = self.comboBox_pfx_serch.currentText()
+        pfx_rpls = self.comboBox_pfx_replace.currentText()
+
+        pfx_srch = "" if pfx_srch == 'none' else pfx_srch
+        pfx_rpls = "" if pfx_rpls == 'none' else pfx_rpls
+
+        pfx_srch += self.lineEdit_serch.text()
+        pfx_rpls += self.lineEdit_replace.text()
+        return pfx_srch, pfx_rpls
+
     def findChildren(self, parent, node):
         children = cmds.listRelatives(parent, children=True, fullPath=True)
         if children:
             for child in children:
                 cmds.connectAttr('%s.message' % child, '%s.selObjects' % node, na=True)
                 self.findChildren(child, node)
+
+    def rename_nonunique(self, hashes='###'):
+        sel = cmds.ls(sl=True)
+        sel.sort(key=lambda x: len(x.split("|")), reverse=True)
+        for obj in sel:
+            new_name = self.unique_names_generator(obj, hashes)
+            if not obj == new_name:
+                cmds.rename(obj, new_name)
+
+    @staticmethod
+    def unique_names_generator(obj, hashes='###'):
+
+        shot_name = obj.split("|")[-1]
+
+        if len(cmds.ls(shot_name)) == 1:
+            return shot_name
+        else:
+            if not len(cmds.ls(shot_name)) == 1:
+                try:
+                    num = re.findall('(\d+)', shot_name)[-1]  # get seurs namber string
+                    txt = shot_name.split(num)[0]
+                    txt = txt.replace(num, '')
+                    sfx = shot_name.split(txt + num)[-1]
+                except IndexError:
+                    num = ""
+                    if "_" in shot_name:
+                        txt = shot_name.split("_")[0]
+                        sfx = "_" + shot_name.split("_")[-1]
+                    else:
+                        txt = shot_name
+                        sfx = ""
+                for i in range(1000):
+                    num_str = '{0:0' + str(len(hashes)) + 'd}'
+                    str_new_num = num_str.format(i)
+                    new_name = txt + str_new_num + sfx
+                    if len(cmds.ls(new_name)) == 0:
+                        return new_name
+                        break
+
 
 def rename_object():
     global win
@@ -292,10 +378,5 @@ def rename_object():
     win = MyWindow()
     win.show()
 
+
 rename_object()
-
-
-
-
-
-
