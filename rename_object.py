@@ -1,5 +1,4 @@
 import re
-
 from PySide2.QtCore import *
 from PySide2.QtGui import *
 from PySide2.QtWidgets import *
@@ -37,7 +36,7 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
-        self.setFixedSize(420, 290)
+        self.setFixedSize(465, 315)
 
         # help and About script windows menu_bar
         menuBar = QMenuBar()
@@ -46,11 +45,8 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         menuBar.addMenu(menu)
 
         self.un_name_check_box = QAction("Use only unique names", self, checkable=True)
-
         self.un_name_check_box.setChecked(True)
-
         menu.addAction(self.un_name_check_box)
-
         def_settings = QAction("Reset settings", self)
         menu.addAction(def_settings)
         def_settings.triggered.connect(lambda: self.set_settings(*DEFAULT_SETTINGS))
@@ -71,13 +67,13 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
 
         # Labels
         self.gridLayout = QGridLayout()
-        self.label_pfx = QLabel(" Pfx:")
+        self.label_pfx = QLabel(" Prefix:")
         self.gridLayout.addWidget(self.label_pfx, 0, 0, 1, 1)
         self.label_name = QLabel(" Name:")
         self.gridLayout.addWidget(self.label_name, 0, 1, 1, 1)
         self.label_digits = QLabel(" Digits:")
         self.gridLayout.addWidget(self.label_digits, 0, 2, 1, 1)
-        self.label_sfx = QLabel(" Sfx:")
+        self.label_sfx = QLabel(" Suffix:")
         self.gridLayout.addWidget(self.label_sfx, 0, 3, 1, 1)
 
         # comboBox_pfx, sfx, lineEdits
@@ -86,11 +82,12 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
             self.comboBox_pfx.addItem(pfx)
         self.gridLayout.addWidget(self.comboBox_pfx, 1, 0, 1, 1)
         self.lineEdit_name = QLineEdit()
-        self.lineEdit_name.setMinimumSize(QSize(160, 20))
+        self.lineEdit_name.setFixedWidth(207)
+        self.lineEdit_name.setClearButtonEnabled(True)
+        self.lineEdit_name.setPlaceholderText("Type name")
         self.gridLayout.addWidget(self.lineEdit_name, 1, 1, 1, 1)
         self.lineEdit_digit = QLineEdit()
         self.gridLayout.addWidget(self.lineEdit_digit, 1, 2, 1, 1)
-        self.lineEdit_digit.setMinimumSize(QSize(30, 20))
         self.lineEdit_digit.setText(DEFAULT_DIGITS)
         self.comboBox_sfx = QComboBox()
         for sfx in SUFFIX_LIST:
@@ -104,6 +101,7 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.raname_box_layout.addWidget(self.line1)
 
         self.button_horizontalLayout = QHBoxLayout()  # buttons
+        self.button_horizontalLayout.setSpacing(3)
         self.raname_box_layout.addLayout(self.button_horizontalLayout)
         self.button_nonunik = QPushButton('Select nonunique')
         self.button_horizontalLayout.addWidget(self.button_nonunik)
@@ -129,10 +127,12 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
             self.comboBox_pfx_serch.addItem(pfx)
         self.serchGridLayout.addWidget(self.comboBox_pfx_serch, 1, 0, 1, 1)
         self.lineEdit_serch = QLineEdit()
-        self.lineEdit_serch.setMinimumSize(QSize(160, 20))
+        self.lineEdit_serch.setClearButtonEnabled(True)
+        self.lineEdit_serch.setPlaceholderText("Type your own prefix")
+        self.lineEdit_serch.setFixedWidth(207)
         self.serchGridLayout.addWidget(self.lineEdit_serch, 1, 1, 1, 1)
 
-        self.btn_add_pfx = QPushButton("Add pfx")
+        self.btn_add_pfx = QPushButton("Add pfx to selected")
         self.serchGridLayout.addWidget(self.btn_add_pfx, 1, 2, 1, 1)
         self.btn_add_pfx.clicked.connect(lambda: self.add_pfx("serch"))
 
@@ -141,10 +141,13 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
             self.comboBox_pfx_replace.addItem(pfx)
         self.serchGridLayout.addWidget(self.comboBox_pfx_replace, 2, 0, 1, 1)
         self.lineEdit_replace = QLineEdit()
-        self.lineEdit_replace.setMinimumSize(QSize(160, 20))
+        self.lineEdit_replace.setClearButtonEnabled(True)
+        self.lineEdit_replace.setPlaceholderText("Type your own prefix")
+        self.lineEdit_replace.setFixedWidth(207)
         self.serchGridLayout.addWidget(self.lineEdit_replace, 2, 1, 1, 1)
 
-        self.btn_add_pfx2 = QPushButton("Add pfx")
+        self.btn_add_pfx2 = QPushButton("Add pfx to selected")
+        self.btn_add_pfx2.setFixedWidth(137)
         self.serchGridLayout.addWidget(self.btn_add_pfx2, 2, 2, 1, 1)
         self.btn_add_pfx2.clicked.connect(lambda: self.add_pfx(""))
         self.raplace_box_layout.addLayout(self.serchGridLayout)
@@ -156,6 +159,7 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.raplace_box_layout.addWidget(self.line1)
 
         self.serch_button_HLayout = QHBoxLayout()  # buttons 2
+        self.serch_button_HLayout.setSpacing(3)
         self.raplace_box_layout.addLayout(self.serch_button_HLayout)
         self.button_close = QPushButton('Close')
         self.serch_button_HLayout.addWidget(self.button_close)
@@ -170,6 +174,41 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         # load settings
         self.settings = QSettings("anRename", "Settings")
         self.load_settings()
+
+        style_sheet = """ 
+            QLineEdit { border-radius: 3 ; 
+                height: 20px;
+                background-color: rgb(40, 40, 40); 
+                }
+            
+            QGridLayout { margin: 0; }
+            
+            QPushButton { 
+                border-radius: 3px;
+                border: 1px solid rgb(60, 60, 60);
+                height: 25px;
+                background-color: rgb(100, 100, 100); 
+                border-style: outset;} 
+            QPushButton:hover { background-color: rgb(130, 130, 130);}
+            QPushButton:pressed { background-color: rgb(0, 0, 0);}
+            
+            QGroupBox { border-radius: 3 ;
+                padding-top: 15 px;
+                background-color: rgb(80, 80, 80); }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                font: bold italic 310% serif;
+                subcontrol-position: top left;  
+                padding: 5 10px;
+                }
+            QComboBox {
+                border-radius: 3px;
+                width: 50px;
+                height: 20px;
+                background-color: rgb(40, 40, 40); }
+                }
+            """
+        self.setStyleSheet(style_sheet)
 
     def load_settings(self):
         """
@@ -186,7 +225,6 @@ class MyWindow(MayaQWidgetBaseMixin, QMainWindow):
         self.lineEdit_name.setText(name)
         self.lineEdit_digit.setText(digs)
         self.comboBox_sfx.setCurrentIndex(int(suffix))
-
         self.comboBox_pfx_serch.setCurrentIndex(1)
         self.comboBox_pfx_replace.setCurrentIndex(2)
 
